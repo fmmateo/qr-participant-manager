@@ -7,20 +7,92 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Upload, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const ManageParticipants = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [tab, setTab] = useState<'individual' | 'list'>('individual');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     participantList: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí irá la lógica para procesar el formulario cuando conectemos Supabase
-    console.log('Datos del formulario:', formData);
+    setIsSubmitting(true);
+
+    try {
+      if (tab === 'individual') {
+        // Insertar participante individual
+        const { error } = await supabase
+          .from('participants')
+          .insert([
+            {
+              name: formData.name,
+              email: formData.email
+            }
+          ]);
+
+        if (error) throw error;
+
+        toast({
+          title: "¡Éxito!",
+          description: "Participante agregado correctamente.",
+        });
+
+        // Limpiar el formulario
+        setFormData(prev => ({
+          ...prev,
+          name: '',
+          email: ''
+        }));
+      } else {
+        // Procesar lista de participantes
+        const lines = formData.participantList
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line);
+
+        const participants = lines.map(line => {
+          const [name, email] = line.split(',').map(item => item.trim());
+          return { name, email };
+        }).filter(p => p.name && p.email);
+
+        if (participants.length === 0) {
+          throw new Error('No se encontraron participantes válidos en la lista');
+        }
+
+        const { error } = await supabase
+          .from('participants')
+          .insert(participants);
+
+        if (error) throw error;
+
+        toast({
+          title: "¡Éxito!",
+          description: `${participants.length} participantes agregados correctamente.`,
+        });
+
+        // Limpiar el formulario
+        setFormData(prev => ({
+          ...prev,
+          participantList: ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al agregar participante(s)",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -113,8 +185,12 @@ const ManageParticipants = () => {
                   </p>
                 </div>
               )}
-              <Button type="submit" className="w-full">
-                {tab === 'individual' ? 'Agregar Participante' : 'Importar Lista'}
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Procesando...' : tab === 'individual' ? 'Agregar Participante' : 'Importar Lista'}
               </Button>
             </form>
           </div>
