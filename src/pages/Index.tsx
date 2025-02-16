@@ -3,9 +3,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PlusCircle, Users, QrCode, Award } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
@@ -32,7 +34,10 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Importa tu lista de estudiantes y genera códigos QR automáticamente.
               </p>
-              <Button className="w-full">
+              <Button 
+                className="w-full"
+                onClick={() => navigate('/participants')}
+              >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nuevo Grupo
               </Button>
