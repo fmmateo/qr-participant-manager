@@ -8,7 +8,7 @@ import { ArrowLeft, UserCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { CalendarDate } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
 
 const RecordAttendance = () => {
   const navigate = useNavigate();
@@ -102,7 +102,7 @@ const RecordAttendance = () => {
               </div>
               <div className="space-y-2">
                 <Label>Fecha de sesión</Label>
-                <CalendarDate
+                <Calendar
                   mode="single"
                   selected={date}
                   onSelect={(newDate) => newDate && setDate(newDate)}
