@@ -44,6 +44,30 @@ export type Database = {
           },
         ]
       }
+      certificate_templates: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          template_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          template_url: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          template_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       certificates: {
         Row: {
           certificate_number: string
@@ -52,6 +76,9 @@ export type Database = {
           id: string
           issue_date: string
           participant_id: string
+          sent_at: string | null
+          sent_email_status: string | null
+          template_id: string | null
           updated_at: string
         }
         Insert: {
@@ -61,6 +88,9 @@ export type Database = {
           id?: string
           issue_date?: string
           participant_id: string
+          sent_at?: string | null
+          sent_email_status?: string | null
+          template_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -70,6 +100,9 @@ export type Database = {
           id?: string
           issue_date?: string
           participant_id?: string
+          sent_at?: string | null
+          sent_email_status?: string | null
+          template_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -80,6 +113,13 @@ export type Database = {
             referencedRelation: "participants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "certificates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_templates"
+            referencedColumns: ["id"]
+          },
         ]
       }
       participants: {
@@ -88,6 +128,9 @@ export type Database = {
           email: string
           id: string
           name: string
+          qr_code: string | null
+          qr_sent_at: string | null
+          qr_sent_email_status: string | null
           updated_at: string
         }
         Insert: {
@@ -95,6 +138,9 @@ export type Database = {
           email: string
           id?: string
           name: string
+          qr_code?: string | null
+          qr_sent_at?: string | null
+          qr_sent_email_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -102,6 +148,9 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          qr_code?: string | null
+          qr_sent_at?: string | null
+          qr_sent_email_status?: string | null
           updated_at?: string
         }
         Relationships: []

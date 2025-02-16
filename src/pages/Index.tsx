@@ -39,7 +39,7 @@ const Index = () => {
                 onClick={() => navigate('/participants')}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Nuevo Grupo
+                Gestionar Participantes
               </Button>
             </div>
           </Card>
@@ -53,8 +53,12 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Escanea códigos QR y registra la asistencia en tiempo real.
               </p>
-              <Button variant="secondary" className="w-full">
-                Escanear QR
+              <Button 
+                variant="secondary" 
+                className="w-full"
+                onClick={() => navigate('/attendance')}
+              >
+                Registrar Asistencia
               </Button>
             </div>
           </Card>
@@ -68,7 +72,11 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Genera y envía certificados personalizados automáticamente.
               </p>
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/certificates')}
+              >
                 Gestionar Certificados
               </Button>
             </div>

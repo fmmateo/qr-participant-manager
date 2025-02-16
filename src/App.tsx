@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ManageParticipants from "./pages/ManageParticipants";
+import RecordAttendance from "./pages/RecordAttendance";
+import IssueCertificate from "./pages/IssueCertificate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +29,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/participants" element={<ManageParticipants />} />
+            <Route path="/attendance" element={<RecordAttendance />} />
+            <Route path="/certificates" element={<IssueCertificate />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

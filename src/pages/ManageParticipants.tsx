@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, Upload, UserPlus, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,7 @@ const ManageParticipants = () => {
     participantList: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingQR, setIsSendingQR] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,20 +29,25 @@ const ManageParticipants = () => {
     try {
       if (tab === 'individual') {
         // Insertar participante individual
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('participants')
           .insert([
             {
               name: formData.name,
               email: formData.email
             }
-          ]);
+          ])
+          .select()
+          .single();
 
         if (error) throw error;
 
+        // Enviar QR por correo
+        await sendQREmail(data);
+
         toast({
           title: "¡Éxito!",
-          description: "Participante agregado correctamente.",
+          description: "Participante agregado y QR enviado correctamente.",
         });
 
         // Limpiar el formulario
@@ -66,15 +72,19 @@ const ManageParticipants = () => {
           throw new Error('No se encontraron participantes válidos en la lista');
         }
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('participants')
-          .insert(participants);
+          .insert(participants)
+          .select();
 
         if (error) throw error;
 
+        // Enviar QRs por correo
+        await Promise.all(data.map(participant => sendQREmail(participant)));
+
         toast({
           title: "¡Éxito!",
-          description: `${participants.length} participantes agregados correctamente.`,
+          description: `${participants.length} participantes agregados y QRs enviados correctamente.`,
         });
 
         // Limpiar el formulario
@@ -95,12 +105,68 @@ const ManageParticipants = () => {
     }
   };
 
+  const sendQREmail = async (participant: { name: string; email: string; qr_code: string }) => {
+    try {
+      const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
+        body: {
+          name: participant.name,
+          email: participant.email,
+          qrCode: participant.qr_code,
+        },
+      });
+
+      if (emailError) throw emailError;
+
+      // Actualizar estado de envío en la base de datos
+      await supabase
+        .from('participants')
+        .update({
+          qr_sent_at: new Date().toISOString(),
+          qr_sent_email_status: 'SENT'
+        })
+        .eq('email', participant.email);
+
+    } catch (error) {
+      console.error('Error sending QR email:', error);
+      throw new Error('Error al enviar el código QR por correo');
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleResendQR = async (email: string) => {
+    setIsSendingQR(true);
+    try {
+      const { data: participant, error } = await supabase
+        .from('participants')
+        .select('name, email, qr_code')
+        .eq('email', email)
+        .single();
+
+      if (error) throw error;
+
+      await sendQREmail(participant);
+
+      toast({
+        title: "¡Éxito!",
+        description: "Código QR reenviado correctamente.",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al reenviar el código QR",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingQR(false);
+    }
   };
 
   return (
@@ -120,7 +186,7 @@ const ManageParticipants = () => {
             <div className="space-y-2">
               <h1 className="text-3xl font-bold">Gestionar Participantes</h1>
               <p className="text-muted-foreground">
-                Agrega participantes de forma individual o importa una lista completa.
+                Agrega participantes y gestiona sus códigos QR.
               </p>
             </div>
 
@@ -157,15 +223,25 @@ const ManageParticipants = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Correo electrónico</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="juan@ejemplo.com"
-                      required
-                    />
+                    <div className="flex space-x-2">
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="juan@ejemplo.com"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleResendQR(formData.email)}
+                        disabled={isSendingQR || !formData.email}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </>
               ) : (
