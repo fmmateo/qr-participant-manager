@@ -9,6 +9,79 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          attendance_time: string
+          created_at: string
+          id: string
+          participant_id: string
+          session_date: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_time?: string
+          created_at?: string
+          id?: string
+          participant_id: string
+          session_date: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_time?: string
+          created_at?: string
+          id?: string
+          participant_id?: string
+          session_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificates: {
+        Row: {
+          certificate_number: string
+          certificate_type: string
+          created_at: string
+          id: string
+          issue_date: string
+          participant_id: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_number: string
+          certificate_type: string
+          created_at?: string
+          id?: string
+          issue_date?: string
+          participant_id: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_number?: string
+          certificate_type?: string
+          created_at?: string
+          id?: string
+          issue_date?: string
+          participant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participants: {
         Row: {
           created_at: string
