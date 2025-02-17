@@ -1,23 +1,16 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, UserCheck, QrCode, Mail } from "lucide-react";
+import { ArrowLeft, QrCode, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { QrReader } from "react-qr-reader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface QrData {
-  name: string;
-  email: string;
-  qrCode: string;
-  timestamp: string;
-}
+import { QrScanner } from "@/components/attendance/QrScanner";
+import { EmailForm } from "@/components/attendance/EmailForm";
+import { registerAttendance } from "@/services/attendanceService";
 
 const RecordAttendance = () => {
   const navigate = useNavigate();
@@ -28,93 +21,20 @@ const RecordAttendance = () => {
   const [qrError, setQrError] = useState('');
   const [isScanning, setIsScanning] = useState(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await registerAttendance(email);
-  };
-
-  const registerAttendance = async (participantIdentifier: string) => {
+  const handleAttendance = async (identifier: string) => {
     setIsSubmitting(true);
     try {
-      console.log('Procesando identificador:', participantIdentifier);
+      const result = await registerAttendance(identifier, date);
       
-      let searchQuery;
-      
-      try {
-        // Intentar parsear el QR si es un JSON válido
-        const qrData: QrData = JSON.parse(participantIdentifier);
-        searchQuery = qrData.qrCode;
-        console.log('Datos del QR:', qrData);
-      } catch {
-        // Si no es JSON válido, usar el identificador directamente (email)
-        searchQuery = participantIdentifier;
-      }
-      
-      // Buscar el participante
-      const { data: participant, error: participantError } = await supabase
-        .from('participants')
-        .select('id, name')
-        .or(`email.eq."${searchQuery}",qr_code.eq."${searchQuery}"`)
-        .single();
-
-      if (participantError) {
-        console.error('Error al buscar participante:', participantError);
-        toast({
-          title: "Error",
-          description: "Participante no encontrado",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Participante encontrado:', participant);
-
-      // Verificar si ya existe un registro para esta fecha
-      const { data: existingAttendance, error: checkError } = await supabase
-        .from('attendance')
-        .select('id, attendance_time')
-        .eq('participant_id', participant.id)
-        .eq('session_date', date.toISOString().split('T')[0])
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error al verificar asistencia existente:', checkError);
-        throw checkError;
-      }
-
-      if (existingAttendance) {
-        const attendanceTime = new Date(existingAttendance.attendance_time).toLocaleTimeString();
-        toast({
-          title: "Asistencia ya registrada",
-          description: `${participant.name} ya registró asistencia hoy a las ${attendanceTime}`,
-          variant: "default",
-        });
-        return;
-      }
-
-      // Registrar la nueva asistencia
-      const { error: attendanceError } = await supabase
-        .from('attendance')
-        .insert([
-          {
-            participant_id: participant.id,
-            session_date: date.toISOString().split('T')[0],
-            attendance_time: new Date().toISOString(),
-          }
-        ]);
-
-      if (attendanceError) {
-        console.error('Error al registrar asistencia:', attendanceError);
-        throw attendanceError;
-      }
-
       toast({
-        title: "¡Asistencia registrada!",
-        description: `Se registró la asistencia de ${participant.name} correctamente.`,
+        title: result.status === 'success' ? "¡Asistencia registrada!" : "Asistencia ya registrada",
+        description: result.message,
+        variant: result.status === 'success' ? "default" : "default",
       });
 
-      // Limpiar el formulario
-      setEmail('');
+      if (result.status === 'success') {
+        setEmail('');
+      }
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -127,16 +47,17 @@ const RecordAttendance = () => {
     }
   };
 
-  const handleQrScan = (result: any) => {
-    if (!isScanning || !result) return;
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleAttendance(email);
+  };
+
+  const handleQrScan = async (result: string) => {
     setIsScanning(false);
     setQrError('');
     
-    registerAttendance(result.text).then(() => {
-      // Reactivar el escáner después de un breve delay
-      setTimeout(() => setIsScanning(true), 2000);
-    });
+    await handleAttendance(result);
+    setTimeout(() => setIsScanning(true), 2000);
   };
 
   return (
@@ -173,44 +94,20 @@ const RecordAttendance = () => {
               </TabsList>
 
               <TabsContent value="qr" className="space-y-4">
-                <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
-                  <QrReader
-                    onResult={handleQrScan}
-                    constraints={{ 
-                      facingMode: 'environment',
-                      aspectRatio: 1
-                    }}
-                    className="w-full h-full"
-                    videoId="qr-video"
-                  />
-                </div>
-                {qrError && (
-                  <p className="text-destructive text-sm text-center">{qrError}</p>
-                )}
+                <QrScanner
+                  onScan={handleQrScan}
+                  isScanning={isScanning}
+                  error={qrError}
+                />
               </TabsContent>
 
               <TabsContent value="email">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo electrónico</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="participante@ejemplo.com"
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Procesando...' : 'Registrar Asistencia'}
-                    <UserCheck className="ml-2 h-4 w-4" />
-                  </Button>
-                </form>
+                <EmailForm
+                  email={email}
+                  setEmail={setEmail}
+                  onSubmit={handleSubmit}
+                  isSubmitting={isSubmitting}
+                />
               </TabsContent>
             </Tabs>
 
