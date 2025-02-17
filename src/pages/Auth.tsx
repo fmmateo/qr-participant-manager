@@ -34,7 +34,7 @@ const Auth = () => {
         description: "Has iniciado sesión correctamente.",
       });
 
-      navigate("/participants");
+      navigate("/participants/list");
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -63,7 +63,7 @@ const Auth = () => {
             <Input
               id="email"
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@ejemplo.com"
               value={formData.email}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, email: e.target.value }))
