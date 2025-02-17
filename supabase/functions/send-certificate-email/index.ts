@@ -55,6 +55,8 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    console.log("Supabase client created");
+
     // Obtener la plantilla
     const { data: template, error: templateError } = await supabase
       .from("certificate_templates")
@@ -67,7 +69,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Error al obtener la plantilla");
     }
 
-    console.log("Template data:", template);
+    if (!template || !template.html_template) {
+      console.error("Template or html_template is null:", template);
+      throw new Error("Plantilla no encontrada o inválida");
+    }
+
+    console.log("Template found:", template.name);
 
     const getCertificateTypeText = (type: string) => {
       switch (type) {
@@ -87,74 +94,84 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // Compilar la plantilla con Handlebars
-    const compiledTemplate = Handlebars.compile(template.html_template);
-    const html = compiledTemplate({
-      participantName: name,
-      certificateType: getCertificateTypeText(certificateType),
-      programType: getProgramTypeText(programType).toLowerCase(),
-      programName,
-      certificateNumber,
-      issueDate,
-      borderColor: template.border_color || "#2D3748",
-      logoUrl: template.organization_logo_url || "https://via.placeholder.com/200x100",
-    });
+    try {
+      // Compilar la plantilla con Handlebars
+      const compiledTemplate = Handlebars.compile(template.html_template);
+      const html = compiledTemplate({
+        participantName: name,
+        certificateType: getCertificateTypeText(certificateType),
+        programType: getProgramTypeText(programType).toLowerCase(),
+        programName,
+        certificateNumber,
+        issueDate,
+        borderColor: template.border_color || "#2D3748",
+        logoUrl: template.organization_logo_url || "https://via.placeholder.com/200x100",
+      });
 
-    console.log("Generated HTML template");
+      console.log("HTML template compiled successfully");
 
-    // Generar PDF
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox']
-    });
-    console.log("Browser launched");
+      // Generar PDF
+      const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      console.log("Browser launched");
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    console.log("Page content set");
+      const page = await browser.newPage();
+      await page.setContent(html, { 
+        waitUntil: ["networkidle0", "domcontentloaded"] 
+      });
+      console.log("Page content set");
 
-    const pdf = await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" }
-    });
-    console.log("PDF generated");
+      const pdf = await page.pdf({
+        format: "A4",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "0", right: "0", bottom: "0", left: "0" }
+      });
+      console.log("PDF generated successfully");
 
-    await browser.close();
-    console.log("Browser closed");
+      await browser.close();
+      console.log("Browser closed");
 
-    // Enviar correo con el PDF adjunto
-    const emailResponse = await resend.emails.send({
-      from: "Certificados <onboarding@resend.dev>",
-      to: [email],
-      subject: `Tu certificado de ${getCertificateTypeText(certificateType)} - ${getProgramTypeText(programType)}`,
-      html: `
-        <h1>¡Hola ${name}!</h1>
-        <p>Adjuntamos tu certificado de ${getCertificateTypeText(certificateType)} del ${getProgramTypeText(programType).toLowerCase()} "${programName}".</p>
-        <p>Puedes encontrar tu certificado adjunto a este correo.</p>
-        <p>Gracias por tu participación.</p>
-      `,
-      attachments: [
-        {
-          filename: `certificado-${certificateNumber}.pdf`,
-          content: pdf,
+      // Enviar correo con el PDF adjunto
+      const emailResponse = await resend.emails.send({
+        from: "Certificados <onboarding@resend.dev>",
+        to: [email],
+        subject: `Tu certificado de ${getCertificateTypeText(certificateType)} - ${getProgramTypeText(programType)}`,
+        html: `
+          <h1>¡Hola ${name}!</h1>
+          <p>Adjuntamos tu certificado de ${getCertificateTypeText(certificateType)} del ${getProgramTypeText(programType).toLowerCase()} "${programName}".</p>
+          <p>Puedes encontrar tu certificado adjunto a este correo.</p>
+          <p>Gracias por tu participación.</p>
+        `,
+        attachments: [
+          {
+            filename: `certificado-${certificateNumber}.pdf`,
+            content: pdf,
+          },
+        ],
+      });
+
+      console.log("Email sent successfully:", emailResponse);
+
+      return new Response(JSON.stringify(emailResponse), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
         },
-      ],
-    });
-
-    console.log("Email sent successfully:", emailResponse);
-
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+      });
+    } catch (innerError) {
+      console.error("Error in PDF generation or email sending:", innerError);
+      throw innerError;
+    }
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error in handler:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : "Error desconocido",
+        details: error instanceof Error ? error.stack : undefined
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

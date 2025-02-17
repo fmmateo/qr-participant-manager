@@ -19,6 +19,7 @@ const RecordAttendance = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [qrError, setQrError] = useState('');
+  const [isScanning, setIsScanning] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +36,14 @@ const RecordAttendance = () => {
         .or(`email.eq.${participantIdentifier},qr_code.eq.${participantIdentifier}`)
         .single();
 
-      if (participantError) throw new Error('Participante no encontrado');
+      if (participantError) {
+        toast({
+          title: "Error",
+          description: "Participante no encontrado",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Registrar la asistencia
       const { error: attendanceError } = await supabase
@@ -48,8 +56,13 @@ const RecordAttendance = () => {
         ]);
 
       if (attendanceError) {
-        if (attendanceError.code === '23505') { // Código de error de duplicado
-          throw new Error('Ya se registró la asistencia para este participante en esta fecha');
+        if (attendanceError.code === '23505') {
+          toast({
+            title: "Aviso",
+            description: "Ya se registró la asistencia para este participante en esta fecha",
+            variant: "destructive",
+          });
+          return;
         }
         throw attendanceError;
       }
@@ -73,16 +86,23 @@ const RecordAttendance = () => {
     }
   };
 
-  const handleQrScan = (result: any, error: any) => {
-    if (error) {
-      console.error('Error:', error);
-      setQrError('Error al escanear el código QR');
-      return;
-    }
+  const handleQrScan = (result: any) => {
+    if (!isScanning) return;
     
     if (result) {
+      setIsScanning(false);
       setQrError('');
-      registerAttendance(result.text);
+      registerAttendance(result.text).then(() => {
+        // Reactivar el escáner después de un breve delay
+        setTimeout(() => setIsScanning(true), 2000);
+      });
+    }
+  };
+
+  const handleQrError = (error: any) => {
+    if (error) {
+      console.error('Error QR:', error);
+      setQrError('Error al acceder a la cámara. Por favor, asegúrate de dar permisos.');
     }
   };
 
@@ -123,7 +143,11 @@ const RecordAttendance = () => {
                 <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
                   <QrReader
                     onResult={handleQrScan}
-                    constraints={{ facingMode: 'environment' }}
+                    onError={handleQrError}
+                    constraints={{ 
+                      facingMode: 'environment',
+                      aspectRatio: 1
+                    }}
                     className="w-full h-full"
                   />
                 </div>
