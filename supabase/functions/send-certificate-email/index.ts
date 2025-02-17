@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import puppeteer from "npm:puppeteer-core@21.5.2";
-import * as Handlebars from "npm:handlebars@4.7.8";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -65,134 +63,45 @@ const handler = async (req: Request): Promise<Response> => {
     }
     console.log("RESEND_API_KEY is configured");
 
-    // Obtener la plantilla HTML básica
-    const basicTemplate = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Certificado</title>
-        <style>
-          body {
-            margin: 0;
-            padding: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: Arial, sans-serif;
-          }
-          .certificate {
-            padding: 50px;
-            border: 10px solid #2D3748;
-            text-align: center;
-            position: relative;
-            background: white;
-            width: 100%;
-            max-width: 800px;
-          }
-          .logo {
-            max-width: 200px;
-            margin-bottom: 30px;
-          }
-          h1 {
-            font-size: 48px;
-            color: #333;
-            margin-bottom: 20px;
-          }
-          .participant-name {
-            font-size: 36px;
-            font-weight: bold;
-            color: #000;
-            margin: 20px 0;
-          }
-          .description {
-            font-size: 24px;
-            color: #666;
-            margin: 20px 0;
-            line-height: 1.5;
-          }
-          .certificate-number {
-            font-size: 14px;
-            color: #999;
-            margin-top: 40px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-          <img src="https://via.placeholder.com/200x100" alt="Logo" class="logo">
-          <h1>Certificado de {{certificateType}}</h1>
-          <div class="participant-name">{{participantName}}</div>
-          <div class="description">
-            Por haber completado el {{programType}} <br>
-            "{{programName}}"
-          </div>
-          <div class="certificate-number">
-            Certificado N°: {{certificateNumber}}<br>
-            Fecha de emisión: {{issueDate}}
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    console.log("Compiling certificate template");
-
-    // Compilar la plantilla con Handlebars
-    const compiledTemplate = Handlebars.compile(basicTemplate);
-    const html = compiledTemplate({
-      participantName: name,
-      certificateType,
-      programType: programType.toLowerCase(),
-      programName,
-      certificateNumber,
-      issueDate,
-    });
-
-    console.log("Template compiled, launching browser");
-
-    // Generar PDF
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    console.log("Browser launched");
-
-    const page = await browser.newPage();
-    await page.setContent(html, { 
-      waitUntil: ["networkidle0", "domcontentloaded"] 
-    });
-    console.log("Page content set");
-
-    const pdf = await page.pdf({
-      format: "A4",
-      landscape: true,
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" }
-    });
-    console.log("PDF generated");
-
-    await browser.close();
-    console.log("Browser closed");
-
     console.log("Attempting to send email...");
-    // Enviar correo con el PDF adjunto
+    // Enviar correo con el certificado en HTML
     const emailResponse = await resend.emails.send({
       from: "noreply@resend.dev",
       to: [email],
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
-        <h1>¡Hola ${name}!</h1>
-        <p>Adjuntamos tu certificado de ${certificateType} del ${programType.toLowerCase()} "${programName}".</p>
-        <p>Puedes encontrar tu certificado adjunto a este correo.</p>
-        <p>Gracias por tu participación.</p>
-      `,
-      attachments: [
-        {
-          filename: `certificado-${certificateNumber}.pdf`,
-          content: pdf,
-        },
-      ],
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Certificado</title>
+        </head>
+        <body style="margin: 0; padding: 40px; font-family: Arial, sans-serif;">
+          <div style="max-width: 800px; margin: 0 auto; padding: 50px; border: 10px solid #2D3748; text-align: center; background: white;">
+            <h1 style="font-size: 48px; color: #333; margin-bottom: 20px;">Certificado de ${certificateType}</h1>
+            
+            <div style="font-size: 36px; font-weight: bold; color: #000; margin: 20px 0;">
+              ${name}
+            </div>
+            
+            <div style="font-size: 24px; color: #666; margin: 20px 0; line-height: 1.5;">
+              Por haber completado el ${programType.toLowerCase()} <br>
+              "${programName}"
+            </div>
+            
+            <div style="font-size: 14px; color: #999; margin-top: 40px;">
+              Certificado N°: ${certificateNumber}<br>
+              Fecha de emisión: ${issueDate}
+            </div>
+          </div>
+          
+          <div style="max-width: 600px; margin: 20px auto; text-align: center; color: #666;">
+            <p>Este certificado ha sido emitido electrónicamente y es válido sin firma.</p>
+            <p>Puedes verificar la autenticidad de este certificado con el número: ${certificateNumber}</p>
+          </div>
+        </body>
+        </html>
+      `
     });
 
     console.log("Email sent successfully:", emailResponse);
