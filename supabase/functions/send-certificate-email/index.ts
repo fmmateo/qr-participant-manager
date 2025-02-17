@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     // Compilar la plantilla con Handlebars
-    const compiledTemplate = Handlebars.compile(template.html_template);
+    const compiledTemplate = Handlebars.compile(template.template_url); // Cambiado de html_template a template_url
     const html = compiledTemplate({
       participantName: name,
       certificateType: getCertificateTypeText(certificateType),
@@ -81,8 +81,8 @@ const handler = async (req: Request): Promise<Response> => {
       programName,
       certificateNumber,
       issueDate,
-      borderColor: template.border_color,
-      logoUrl: template.organization_logo_url,
+      borderColor: "#2D3748", // Color predeterminado
+      logoUrl: "https://via.placeholder.com/200x100", // Logo temporal
     });
 
     // Generar PDF
