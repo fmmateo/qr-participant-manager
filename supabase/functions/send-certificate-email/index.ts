@@ -39,6 +39,16 @@ const handler = async (req: Request): Promise<Response> => {
       issueDate 
     }: CertificateEmailRequest = await req.json();
 
+    console.log("Received request with data:", {
+      name,
+      email,
+      certificateNumber,
+      certificateType,
+      programType,
+      programName,
+      issueDate
+    });
+
     // Conectar a Supabase
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -52,7 +62,12 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("name", "Template Básico")
       .single();
 
-    if (templateError) throw new Error("Error al obtener la plantilla");
+    if (templateError) {
+      console.error("Error fetching template:", templateError);
+      throw new Error("Error al obtener la plantilla");
+    }
+
+    console.log("Template data:", template);
 
     const getCertificateTypeText = (type: string) => {
       switch (type) {
@@ -73,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     // Compilar la plantilla con Handlebars
-    const compiledTemplate = Handlebars.compile(template.template_url); // Cambiado de html_template a template_url
+    const compiledTemplate = Handlebars.compile(template.html_template);
     const html = compiledTemplate({
       participantName: name,
       certificateType: getCertificateTypeText(certificateType),
@@ -81,23 +96,32 @@ const handler = async (req: Request): Promise<Response> => {
       programName,
       certificateNumber,
       issueDate,
-      borderColor: "#2D3748", // Color predeterminado
-      logoUrl: "https://via.placeholder.com/200x100", // Logo temporal
+      borderColor: template.border_color || "#2D3748",
+      logoUrl: template.organization_logo_url || "https://via.placeholder.com/200x100",
     });
+
+    console.log("Generated HTML template");
 
     // Generar PDF
     const browser = await puppeteer.launch({
       args: ['--no-sandbox']
     });
+    console.log("Browser launched");
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
+    console.log("Page content set");
+
     const pdf = await page.pdf({
       format: "A4",
       landscape: true,
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" }
     });
+    console.log("PDF generated");
+
     await browser.close();
+    console.log("Browser closed");
 
     // Enviar correo con el PDF adjunto
     const emailResponse = await resend.emails.send({
