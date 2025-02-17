@@ -44,6 +44,30 @@ export type Database = {
           },
         ]
       }
+      certificate_assets: {
+        Row: {
+          asset_url: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          asset_url: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          asset_url?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       certificate_templates: {
         Row: {
           created_at: string
