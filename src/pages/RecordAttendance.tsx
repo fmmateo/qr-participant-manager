@@ -50,26 +50,42 @@ const RecordAttendance = () => {
 
       console.log('Participante encontrado:', participant);
 
-      // Registrar la asistencia
+      // Verificar si ya existe un registro para esta fecha
+      const { data: existingAttendance, error: checkError } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('participant_id', participant.id)
+        .eq('session_date', date.toISOString().split('T')[0])
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error al verificar asistencia existente:', checkError);
+        throw checkError;
+      }
+
+      if (existingAttendance) {
+        console.log('Asistencia ya registrada para esta fecha');
+        toast({
+          title: "Aviso",
+          description: "La asistencia ya fue registrada para este participante en esta fecha",
+          variant: "default",
+        });
+        return;
+      }
+
+      // Si no existe, registrar la asistencia
       const { error: attendanceError } = await supabase
         .from('attendance')
         .insert([
           {
             participant_id: participant.id,
             session_date: date.toISOString().split('T')[0],
+            attendance_time: new Date().toISOString(),
           }
         ]);
 
       if (attendanceError) {
         console.error('Error al registrar asistencia:', attendanceError);
-        if (attendanceError.code === '23505') {
-          toast({
-            title: "Aviso",
-            description: "Ya se registró la asistencia para este participante en esta fecha",
-            variant: "destructive",
-          });
-          return;
-        }
         throw attendanceError;
       }
 
