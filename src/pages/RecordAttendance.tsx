@@ -29,14 +29,17 @@ const RecordAttendance = () => {
   const registerAttendance = async (participantIdentifier: string) => {
     setIsSubmitting(true);
     try {
+      console.log('Buscando participante:', participantIdentifier);
+      
       // Primero, buscar el participante por email o código QR
       const { data: participant, error: participantError } = await supabase
         .from('participants')
         .select('id')
-        .or(`email.eq.${participantIdentifier},qr_code.eq.${participantIdentifier}`)
+        .or(`email.eq."${participantIdentifier}",qr_code.eq."${participantIdentifier}"`)
         .single();
 
       if (participantError) {
+        console.error('Error al buscar participante:', participantError);
         toast({
           title: "Error",
           description: "Participante no encontrado",
@@ -44,6 +47,8 @@ const RecordAttendance = () => {
         });
         return;
       }
+
+      console.log('Participante encontrado:', participant);
 
       // Registrar la asistencia
       const { error: attendanceError } = await supabase
@@ -56,6 +61,7 @@ const RecordAttendance = () => {
         ]);
 
       if (attendanceError) {
+        console.error('Error al registrar asistencia:', attendanceError);
         if (attendanceError.code === '23505') {
           toast({
             title: "Aviso",
@@ -99,13 +105,6 @@ const RecordAttendance = () => {
     }
   };
 
-  const handleQrError = (error: any) => {
-    if (error) {
-      console.error('Error QR:', error);
-      setQrError('Error al acceder a la cámara. Por favor, asegúrate de dar permisos.');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8 animate-in">
@@ -143,12 +142,12 @@ const RecordAttendance = () => {
                 <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
                   <QrReader
                     onResult={handleQrScan}
-                    onError={handleQrError}
                     constraints={{ 
                       facingMode: 'environment',
                       aspectRatio: 1
                     }}
                     className="w-full h-full"
+                    videoId="qr-video"
                   />
                 </div>
                 {qrError && (

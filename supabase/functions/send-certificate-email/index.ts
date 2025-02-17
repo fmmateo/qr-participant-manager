@@ -24,6 +24,7 @@ interface CertificateEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -50,123 +51,156 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Conectar a Supabase
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Faltan las credenciales de Supabase");
+    }
 
+    const supabase = createClient(supabaseUrl, supabaseKey);
     console.log("Supabase client created");
 
-    // Obtener la plantilla
-    const { data: template, error: templateError } = await supabase
-      .from("certificate_templates")
-      .select("*")
-      .eq("name", "Template Básico")
-      .single();
+    // Obtener la plantilla HTML básica
+    const basicTemplate = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Certificado</title>
+        <style>
+          body {
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+          }
+          .certificate {
+            padding: 50px;
+            border: 10px solid {{borderColor}};
+            text-align: center;
+            position: relative;
+            background: white;
+            width: 100%;
+            max-width: 800px;
+          }
+          .logo {
+            max-width: 200px;
+            margin-bottom: 30px;
+          }
+          h1 {
+            font-size: 48px;
+            color: #333;
+            margin-bottom: 20px;
+          }
+          .participant-name {
+            font-size: 36px;
+            font-weight: bold;
+            color: #000;
+            margin: 20px 0;
+          }
+          .description {
+            font-size: 24px;
+            color: #666;
+            margin: 20px 0;
+            line-height: 1.5;
+          }
+          .certificate-number {
+            font-size: 14px;
+            color: #999;
+            margin-top: 40px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <img src="{{logoUrl}}" alt="Logo" class="logo">
+          <h1>Certificado de {{certificateType}}</h1>
+          <div class="participant-name">{{participantName}}</div>
+          <div class="description">
+            Por haber completado el {{programType}} <br>
+            "{{programName}}"
+          </div>
+          <div class="certificate-number">
+            Certificado N°: {{certificateNumber}}<br>
+            Fecha de emisión: {{issueDate}}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-    if (templateError) {
-      console.error("Error fetching template:", templateError);
-      throw new Error("Error al obtener la plantilla");
-    }
+    // Compilar la plantilla con Handlebars
+    const compiledTemplate = Handlebars.compile(basicTemplate);
+    const html = compiledTemplate({
+      participantName: name,
+      certificateType: certificateType,
+      programType: programType.toLowerCase(),
+      programName,
+      certificateNumber,
+      issueDate,
+      borderColor: "#2D3748",
+      logoUrl: "https://via.placeholder.com/200x100",
+    });
 
-    if (!template || !template.html_template) {
-      console.error("Template or html_template is null:", template);
-      throw new Error("Plantilla no encontrada o inválida");
-    }
+    console.log("Template compiled successfully");
 
-    console.log("Template found:", template.name);
+    // Generar PDF
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    console.log("Browser launched");
 
-    const getCertificateTypeText = (type: string) => {
-      switch (type) {
-        case "PARTICIPACION": return "Participación";
-        case "APROBACION": return "Aprobación";
-        case "ASISTENCIA": return "Asistencia";
-        default: return type;
-      }
-    };
+    const page = await browser.newPage();
+    await page.setContent(html, { 
+      waitUntil: ["networkidle0", "domcontentloaded"] 
+    });
+    console.log("Page content set");
 
-    const getProgramTypeText = (type: string) => {
-      switch (type) {
-        case "CURSO": return "Curso";
-        case "TALLER": return "Taller";
-        case "DIPLOMADO": return "Diplomado";
-        default: return type;
-      }
-    };
+    const pdf = await page.pdf({
+      format: "A4",
+      landscape: true,
+      printBackground: true,
+      margin: { top: "0", right: "0", bottom: "0", left: "0" }
+    });
+    console.log("PDF generated");
 
-    try {
-      // Compilar la plantilla con Handlebars
-      const compiledTemplate = Handlebars.compile(template.html_template);
-      const html = compiledTemplate({
-        participantName: name,
-        certificateType: getCertificateTypeText(certificateType),
-        programType: getProgramTypeText(programType).toLowerCase(),
-        programName,
-        certificateNumber,
-        issueDate,
-        borderColor: template.border_color || "#2D3748",
-        logoUrl: template.organization_logo_url || "https://via.placeholder.com/200x100",
-      });
+    await browser.close();
+    console.log("Browser closed");
 
-      console.log("HTML template compiled successfully");
-
-      // Generar PDF
-      const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      console.log("Browser launched");
-
-      const page = await browser.newPage();
-      await page.setContent(html, { 
-        waitUntil: ["networkidle0", "domcontentloaded"] 
-      });
-      console.log("Page content set");
-
-      const pdf = await page.pdf({
-        format: "A4",
-        landscape: true,
-        printBackground: true,
-        margin: { top: "0", right: "0", bottom: "0", left: "0" }
-      });
-      console.log("PDF generated successfully");
-
-      await browser.close();
-      console.log("Browser closed");
-
-      // Enviar correo con el PDF adjunto
-      const emailResponse = await resend.emails.send({
-        from: "Certificados <onboarding@resend.dev>",
-        to: [email],
-        subject: `Tu certificado de ${getCertificateTypeText(certificateType)} - ${getProgramTypeText(programType)}`,
-        html: `
-          <h1>¡Hola ${name}!</h1>
-          <p>Adjuntamos tu certificado de ${getCertificateTypeText(certificateType)} del ${getProgramTypeText(programType).toLowerCase()} "${programName}".</p>
-          <p>Puedes encontrar tu certificado adjunto a este correo.</p>
-          <p>Gracias por tu participación.</p>
-        `,
-        attachments: [
-          {
-            filename: `certificado-${certificateNumber}.pdf`,
-            content: pdf,
-          },
-        ],
-      });
-
-      console.log("Email sent successfully:", emailResponse);
-
-      return new Response(JSON.stringify(emailResponse), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
+    // Enviar correo con el PDF adjunto
+    const emailResponse = await resend.emails.send({
+      from: "Certificados <onboarding@resend.dev>",
+      to: [email],
+      subject: `Tu certificado de ${certificateType} - ${programType}`,
+      html: `
+        <h1>¡Hola ${name}!</h1>
+        <p>Adjuntamos tu certificado de ${certificateType} del ${programType.toLowerCase()} "${programName}".</p>
+        <p>Puedes encontrar tu certificado adjunto a este correo.</p>
+        <p>Gracias por tu participación.</p>
+      `,
+      attachments: [
+        {
+          filename: `certificado-${certificateNumber}.pdf`,
+          content: pdf,
         },
-      });
-    } catch (innerError) {
-      console.error("Error in PDF generation or email sending:", innerError);
-      throw innerError;
-    }
+      ],
+    });
+
+    console.log("Email sent successfully:", emailResponse);
+
+    return new Response(JSON.stringify(emailResponse), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
   } catch (error) {
-    console.error("Error in handler:", error);
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Error desconocido",
