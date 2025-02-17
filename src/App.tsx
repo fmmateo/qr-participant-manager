@@ -9,6 +9,8 @@ import NotFound from "./pages/NotFound";
 import ManageParticipants from "./pages/ManageParticipants";
 import RecordAttendance from "./pages/RecordAttendance";
 import IssueCertificate from "./pages/IssueCertificate";
+import Auth from "./pages/Auth";
+import ParticipantList from "./pages/ParticipantList";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,8 +31,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/participants" element={<ManageParticipants />} />
+            <Route path="/participants/list" element={<ParticipantList />} />
             <Route path="/attendance" element={<RecordAttendance />} />
             <Route path="/certificates" element={<IssueCertificate />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
