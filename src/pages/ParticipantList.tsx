@@ -167,19 +167,28 @@ const ParticipantList = () => {
   };
 
   const handleDeleteParticipant = async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar este participante?")) return;
+    if (!confirm("¿Estás seguro de eliminar este participante? Esto también eliminará todos sus registros asociados.")) return;
 
     try {
-      const { error } = await supabase
+      // Primero eliminamos los registros asociados
+      const { error: registrationsError } = await supabase
+        .from("registrations")
+        .delete()
+        .eq("participant_id", id);
+
+      if (registrationsError) throw registrationsError;
+
+      // Luego eliminamos el participante
+      const { error: participantError } = await supabase
         .from("participants")
         .delete()
         .eq("id", id);
 
-      if (error) throw error;
+      if (participantError) throw participantError;
 
       toast({
         title: "¡Éxito!",
-        description: "Participante eliminado correctamente",
+        description: "Participante y sus registros eliminados correctamente",
       });
     } catch (error) {
       console.error("Error:", error);
