@@ -1,10 +1,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { UserPlus, QrCode, Award, Users2, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { UserPlus, QrCode, Award, Users2, LogIn, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -46,12 +49,12 @@ const Index = () => {
             </Card>
           </Link>
 
-          <Link to="/auth">
+          <Link to="/registration">
             <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
-              <Users2 className="w-12 h-12 mb-4 text-primary" />
-              <h2 className="text-2xl font-bold mb-2">Administrar Participantes</h2>
+              <UserCheck className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Nueva Inscripción</h2>
               <p className="text-muted-foreground">
-                Gestiona la lista completa de participantes
+                Inscribe participantes en programas activos
               </p>
             </Card>
           </Link>
