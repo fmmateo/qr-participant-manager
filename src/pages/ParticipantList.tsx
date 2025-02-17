@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen } from "lucide-react";
+import { ArrowLeft, LogOut, Eye, Users2, UserCheck } from "lucide-react";
 import { ParticipantTable } from "@/components/participants/ParticipantTable";
 import { AttendanceTable } from "@/components/participants/AttendanceTable";
 
@@ -264,11 +264,11 @@ const ParticipantList = () => {
           <div className="flex gap-2">
             <Button 
               variant="default" 
-              onClick={() => navigate("/programs")}
+              onClick={() => navigate("/registration")}
               className="bg-primary"
             >
-              <BookOpen className="mr-2 h-4 w-4" />
-              Gestionar Programas
+              <UserCheck className="mr-2 h-4 w-4" />
+              Nueva Inscripción
             </Button>
             <Button variant="outline" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />

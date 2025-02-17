@@ -19,25 +19,55 @@ const Index = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Link to="/registration">
+          <Link to="/participants">
             <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
               <UserPlus className="w-12 h-12 mb-4 text-primary" />
-              <h2 className="text-2xl font-bold mb-2">Nueva Inscripción</h2>
+              <h2 className="text-2xl font-bold mb-2">Registrar Participantes</h2>
               <p className="text-muted-foreground">
-                Regístrate en nuestros programas
+                Añade nuevos participantes al sistema
               </p>
             </Card>
           </Link>
 
-          <Link to="/auth">
+          <Link to="/attendance">
             <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <QrCode className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Registrar Asistencia</h2>
+              <p className="text-muted-foreground">
+                Escanea códigos QR para registrar asistencia
+              </p>
+            </Card>
+          </Link>
+
+          <Link to="/certificates">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <Award className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Emitir Certificados</h2>
+              <p className="text-muted-foreground">
+                Genera y envía certificados a los participantes
+              </p>
+            </Card>
+          </Link>
+
+          <Link to="/programs">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <BookOpen className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Gestionar Programas</h2>
+              <p className="text-muted-foreground">
+                Administra los programas disponibles
+              </p>
+            </Card>
+          </Link>
+
+          <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+            <Link to="/auth" className="flex flex-col items-center">
               <Users2 className="w-12 h-12 mb-4 text-primary" />
               <h2 className="text-2xl font-bold mb-2">Acceso Administrativo</h2>
               <p className="text-muted-foreground text-center">
                 Accede al panel de administración
               </p>
-            </Card>
-          </Link>
+            </Link>
+          </Card>
         </div>
       </div>
     </div>
