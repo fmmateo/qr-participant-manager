@@ -99,6 +99,43 @@ const ParticipantList = () => {
     checkAuth();
     loadParticipants();
     loadAttendance();
+
+    // Suscribirse a cambios en tiempo real para participantes
+    const participantsChannel = supabase
+      .channel('participants-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'participants'
+        },
+        () => {
+          loadParticipants();
+        }
+      )
+      .subscribe();
+
+    // Suscribirse a cambios en tiempo real para asistencias
+    const attendanceChannel = supabase
+      .channel('attendance-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance'
+        },
+        () => {
+          loadAttendance();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(participantsChannel);
+      supabase.removeChannel(attendanceChannel);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -106,7 +143,7 @@ const ParticipantList = () => {
     navigate("/auth");
   };
 
-  const handleUpdate = async (id: string, data: { name: string; email: string }) => {
+  const handleUpdateParticipant = async (id: string, data: { name: string; email: string }) => {
     try {
       const { error } = await supabase
         .from("participants")
@@ -119,8 +156,6 @@ const ParticipantList = () => {
         title: "¡Éxito!",
         description: "Participante actualizado correctamente",
       });
-
-      loadParticipants();
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -131,7 +166,7 @@ const ParticipantList = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteParticipant = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar este participante?")) return;
 
     try {
@@ -146,13 +181,64 @@ const ParticipantList = () => {
         title: "¡Éxito!",
         description: "Participante eliminado correctamente",
       });
-
-      loadParticipants();
     } catch (error) {
       console.error("Error:", error);
       toast({
         title: "Error",
         description: "Error al eliminar el participante",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateAttendance = async (id: string, data: { session_date: string; attendance_time: string }) => {
+    try {
+      const attendance_time = new Date(`${data.session_date}T${data.attendance_time}`).toISOString();
+      
+      const { error } = await supabase
+        .from("attendance")
+        .update({
+          session_date: data.session_date,
+          attendance_time
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Éxito!",
+        description: "Registro de asistencia actualizado correctamente",
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Error al actualizar el registro de asistencia",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAttendance = async (id: string) => {
+    if (!confirm("¿Estás seguro de eliminar este registro de asistencia?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("attendance")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Éxito!",
+        description: "Registro de asistencia eliminado correctamente",
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar el registro de asistencia",
         variant: "destructive",
       });
     }
@@ -195,8 +281,8 @@ const ParticipantList = () => {
               ) : (
                 <ParticipantTable
                   participants={participants}
-                  onUpdate={handleUpdate}
-                  onDelete={handleDelete}
+                  onUpdate={handleUpdateParticipant}
+                  onDelete={handleDeleteParticipant}
                 />
               )}
             </TabsContent>
@@ -209,7 +295,11 @@ const ParticipantList = () => {
               {loading ? (
                 <p>Cargando registros de asistencia...</p>
               ) : (
-                <AttendanceTable attendanceRecords={attendanceRecords} />
+                <AttendanceTable
+                  attendanceRecords={attendanceRecords}
+                  onUpdate={handleUpdateAttendance}
+                  onDelete={handleDeleteAttendance}
+                />
               )}
             </TabsContent>
           </Tabs>
