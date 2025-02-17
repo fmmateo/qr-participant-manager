@@ -185,6 +185,81 @@ export type Database = {
         }
         Relationships: []
       }
+      programs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registrations: {
+        Row: {
+          created_at: string
+          email_sent_status: string | null
+          id: string
+          participant_id: string | null
+          phone: string
+          program_id: string | null
+          registration_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_sent_status?: string | null
+          id?: string
+          participant_id?: string | null
+          phone: string
+          program_id?: string | null
+          registration_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_sent_status?: string | null
+          id?: string
+          participant_id?: string | null
+          phone?: string
+          program_id?: string | null
+          registration_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrations_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
