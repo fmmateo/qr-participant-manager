@@ -122,7 +122,7 @@ const RecordAttendance = () => {
                 <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
                   <QrReader
                     onResult={handleQrScan}
-                    onError={handleQrError}
+                    onScanError={handleQrError}
                     constraints={{ facingMode: 'environment' }}
                     className="w-full h-full"
                   />
