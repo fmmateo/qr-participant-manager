@@ -12,16 +12,22 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log("Received request");
+
+  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { name, email, qrCode } = await req.json();
+    console.log("Processing request for:", { name, email, qrCode });
 
-    console.log("Received request to send QR code:", { name, email, qrCode });
+    if (!name || !email || !qrCode) {
+      throw new Error("Missing required fields");
+    }
 
-    // Generate QR code
+    // Generar QR code
     const qrCodeDataUrl = await QRCode.toDataURL(qrCode, {
       width: 300,
       margin: 2,
@@ -33,21 +39,23 @@ serve(async (req) => {
 
     console.log("QR code generated successfully");
 
-    // Convert data URL to base64
+    // Convertir data URL a base64
     const base64Data = qrCodeDataUrl.split(",")[1];
 
-    // Send email with QR code
+    // Enviar email con QR code
     const data = await resend.emails.send({
       from: "QR Codes <onboarding@resend.dev>",
       to: [email],
       subject: "Tu código QR de asistencia",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>¡Hola ${name}!</h1>
-          <p>Aquí está tu código QR personal para registrar tu asistencia:</p>
-          <img src="cid:qr-code" alt="QR Code" style="width: 300px; height: 300px;">
-          <p>Guarda este código y muéstralo al momento de registrar tu asistencia.</p>
-          <p>¡Gracias!</p>
+          <h1 style="color: #333;">¡Hola ${name}!</h1>
+          <p style="color: #666;">Aquí está tu código QR personal para registrar tu asistencia:</p>
+          <div style="text-align: center;">
+            <img src="cid:qr-code" alt="QR Code" style="width: 300px; height: 300px; margin: 20px 0;">
+          </div>
+          <p style="color: #666;">Guarda este código y muéstralo al momento de registrar tu asistencia.</p>
+          <p style="color: #666; margin-top: 20px;">¡Gracias!</p>
         </div>
       `,
       attachments: [
@@ -63,17 +71,25 @@ serve(async (req) => {
     console.log("Email sent successfully:", data);
 
     return new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: { 
+        "Content-Type": "application/json",
+        ...corsHeaders 
+      },
     });
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error in send-qr-email function:", error);
+    
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "An error occurred",
+        details: error instanceof Error ? error.stack : undefined
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders 
+        },
       }
     );
   }
