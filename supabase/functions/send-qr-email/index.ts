@@ -24,15 +24,20 @@ serve(async (req) => {
     console.log("Processing request for:", { name, email, qrCode });
 
     if (!name || !email || !qrCode) {
+      console.error("Missing required fields:", { name, email, qrCode });
       throw new Error("Missing required fields");
     }
 
     // Validar el API key de Resend
-    if (!Deno.env.get("RESEND_API_KEY")) {
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not configured");
       throw new Error("RESEND_API_KEY not configured");
     }
+    console.log("RESEND_API_KEY is configured");
 
     // Generar QR code
+    console.log("Generating QR code...");
     const qrCodeDataUrl = await QRCode.toDataURL(qrCode, {
       width: 300,
       margin: 2,
@@ -41,15 +46,15 @@ serve(async (req) => {
         light: "#ffffff",
       },
     });
-
     console.log("QR code generated successfully");
 
     // Convertir data URL a base64
     const base64Data = qrCodeDataUrl.split(",")[1];
 
+    console.log("Attempting to send email...");
     // Enviar email con QR code
-    const data = await resend.emails.send({
-      from: "Asistencias <onboarding@resend.dev>",
+    const emailResponse = await resend.emails.send({
+      from: "noreply@resend.dev",
       to: [email],
       subject: "Tu código QR de asistencia",
       html: `
@@ -73,9 +78,9 @@ serve(async (req) => {
       ],
     });
 
-    console.log("Email sent successfully:", data);
+    console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify(emailResponse), {
       headers: { 
         "Content-Type": "application/json",
         ...corsHeaders 

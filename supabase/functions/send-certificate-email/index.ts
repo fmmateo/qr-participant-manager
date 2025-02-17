@@ -53,13 +53,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validar campos requeridos
     if (!name || !email || !certificateNumber || !certificateType || !programType || !programName || !issueDate) {
+      console.error("Missing required fields");
       throw new Error("Missing required fields");
     }
 
     // Validar el API key de Resend
-    if (!Deno.env.get("RESEND_API_KEY")) {
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not configured");
       throw new Error("RESEND_API_KEY not configured");
     }
+    console.log("RESEND_API_KEY is configured");
 
     // Obtener la plantilla HTML básica
     const basicTemplate = `
@@ -171,9 +175,10 @@ const handler = async (req: Request): Promise<Response> => {
     await browser.close();
     console.log("Browser closed");
 
+    console.log("Attempting to send email...");
     // Enviar correo con el PDF adjunto
     const emailResponse = await resend.emails.send({
-      from: "Certificados <onboarding@resend.dev>",
+      from: "noreply@resend.dev",
       to: [email],
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
