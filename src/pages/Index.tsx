@@ -49,16 +49,6 @@ const Index = () => {
             </Card>
           </Link>
 
-          <Link to="/registration">
-            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
-              <UserCheck className="w-12 h-12 mb-4 text-primary" />
-              <h2 className="text-2xl font-bold mb-2">Nueva Inscripción</h2>
-              <p className="text-muted-foreground">
-                Inscribe participantes en programas activos
-              </p>
-            </Card>
-          </Link>
-
           <Link to="/programs">
             <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
               <BookOpen className="w-12 h-12 mb-4 text-primary" />
