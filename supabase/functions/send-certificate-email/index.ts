@@ -21,45 +21,140 @@ interface CertificateEmailRequest {
 }
 
 function generateCertificateSVG(data: CertificateEmailRequest): string {
+  const certificateTypeText = data.certificateType.toLowerCase() === 'participacion' 
+    ? 'PARTICIPACIÓN' 
+    : data.certificateType === 'APROBACION' 
+      ? 'APROBACIÓN' 
+      : 'ASISTENCIA';
+
   return `
     <svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
-      <!-- Fondo blanco -->
-      <rect width="1920" height="1080" fill="#FFFFFF"/>
+      <!-- Fondo con gradiente -->
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#f3f4f6;stop-opacity:1" />
+        </linearGradient>
+        <filter id="shadow">
+          <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+        </filter>
+      </defs>
       
-      <!-- Borde ornamental -->
-      <rect x="40" y="40" width="1840" height="1000" 
-        fill="none" stroke="#8CC63F" stroke-width="20"/>
+      <!-- Fondo principal -->
+      <rect width="1920" height="1080" fill="url(#grad1)"/>
       
-      <!-- Esquinas ornamentales -->
-      <path d="M40 140 Q40 40 140 40" stroke="#8CC63F" stroke-width="5" fill="none"/>
-      <path d="M1780 40 Q1880 40 1880 140" stroke="#8CC63F" stroke-width="5" fill="none"/>
-      <path d="M40 940 Q40 1040 140 1040" stroke="#8CC63F" stroke-width="5" fill="none"/>
-      <path d="M1780 1040 Q1880 1040 1880 940" stroke="#8CC63F" stroke-width="5" fill="none"/>
+      <!-- Borde decorativo -->
+      <rect x="60" y="60" width="1800" height="960" 
+        fill="none" 
+        stroke="#8B5CF6" 
+        stroke-width="3"
+        rx="20"
+        filter="url(#shadow)"/>
       
-      <!-- Textos -->
-      <text x="960" y="200" font-family="Arial" font-size="60" font-weight="bold" 
-        fill="#333333" text-anchor="middle">CERTIFICADO</text>
+      <!-- Patrón decorativo superior -->
+      <path d="M100,100 Q960,50 1820,100" 
+        stroke="#8B5CF6" 
+        stroke-width="2" 
+        fill="none"
+        opacity="0.5"/>
       
-      <text x="960" y="260" font-family="Arial" font-size="40" font-weight="bold" 
-        fill="#8CC63F" text-anchor="middle">DE ${data.certificateType}</text>
+      <!-- Patrón decorativo inferior -->
+      <path d="M100,980 Q960,1030 1820,980" 
+        stroke="#8B5CF6" 
+        stroke-width="2" 
+        fill="none"
+        opacity="0.5"/>
       
-      <text x="960" y="350" font-family="Arial" font-size="30" font-style="italic" 
-        fill="#666666" text-anchor="middle">Se certifica que</text>
+      <!-- Título principal -->
+      <text x="960" y="200" 
+        font-family="Arial" 
+        font-size="80" 
+        font-weight="bold" 
+        fill="#1F2937"
+        text-anchor="middle"
+        filter="url(#shadow)">
+        CERTIFICADO
+      </text>
       
-      <text x="960" y="450" font-family="Arial" font-size="50" font-weight="bold" 
-        fill="#333333" text-anchor="middle">${data.name}</text>
+      <!-- Subtítulo -->
+      <text x="960" y="280" 
+        font-family="Arial" 
+        font-size="40" 
+        font-weight="bold" 
+        fill="#8B5CF6"
+        text-anchor="middle">
+        DE ${certificateTypeText}
+      </text>
       
-      <text x="960" y="550" font-family="Arial" font-size="30" 
-        fill="#666666" text-anchor="middle">Ha completado satisfactoriamente el ${data.programType.toLowerCase()}:</text>
+      <!-- Texto introductorio -->
+      <text x="960" y="380" 
+        font-family="Arial" 
+        font-size="30" 
+        font-style="italic" 
+        fill="#4B5563"
+        text-anchor="middle">
+        Se certifica que
+      </text>
       
-      <text x="960" y="620" font-family="Arial" font-size="40" font-weight="bold" 
-        fill="#333333" text-anchor="middle">"${data.programName}"</text>
+      <!-- Nombre del participante -->
+      <text x="960" y="480" 
+        font-family="Arial" 
+        font-size="60" 
+        font-weight="bold" 
+        fill="#1F2937"
+        text-anchor="middle"
+        filter="url(#shadow)">
+        ${data.name}
+      </text>
       
-      <text x="960" y="900" font-family="Arial" font-size="20" 
-        fill="#888888" text-anchor="middle">Certificado N°: ${data.certificateNumber}</text>
+      <!-- Descripción del programa -->
+      <text x="960" y="580" 
+        font-family="Arial" 
+        font-size="30" 
+        fill="#4B5563"
+        text-anchor="middle">
+        Ha completado satisfactoriamente el ${data.programType.toLowerCase()}:
+      </text>
       
-      <text x="960" y="940" font-family="Arial" font-size="20" 
-        fill="#888888" text-anchor="middle">Fecha de emisión: ${data.issueDate}</text>
+      <!-- Nombre del programa -->
+      <text x="960" y="650" 
+        font-family="Arial" 
+        font-size="45" 
+        font-weight="bold" 
+        fill="#1F2937"
+        text-anchor="middle"
+        filter="url(#shadow)">
+        "${data.programName}"
+      </text>
+      
+      <!-- Detalles del certificado -->
+      <text x="960" y="900" 
+        font-family="Arial" 
+        font-size="25" 
+        fill="#6B7280"
+        text-anchor="middle">
+        Certificado N°: ${data.certificateNumber}
+      </text>
+      
+      <text x="960" y="940" 
+        font-family="Arial" 
+        font-size="25" 
+        fill="#6B7280"
+        text-anchor="middle">
+        Fecha de emisión: ${data.issueDate}
+      </text>
+
+      <!-- Firma y sello -->
+      <line x1="700" y1="800" x2="1220" y2="800" 
+        stroke="#8B5CF6" 
+        stroke-width="2"/>
+      <text x="960" y="840" 
+        font-family="Arial" 
+        font-size="25" 
+        fill="#4B5563"
+        text-anchor="middle">
+        Director Académico
+      </text>
     </svg>
   `;
 }
@@ -124,6 +219,7 @@ serve(async (req) => {
           <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
           <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
           <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
+          <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
         </div>
       `,
       attachments: [
