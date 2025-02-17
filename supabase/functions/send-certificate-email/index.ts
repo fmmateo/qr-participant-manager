@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { Canvas, loadImage } from "npm:@napi-rs/canvas";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -21,82 +20,53 @@ interface CertificateEmailRequest {
   issueDate: string;
 }
 
-async function generateCertificateImage(data: CertificateEmailRequest): Promise<Buffer> {
-  const canvas = new Canvas(1920, 1080);
-  const ctx = canvas.getContext("2d");
-
-  // Establecer fondo blanco
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, 1920, 1080);
-
-  // Dibujar borde ornamental verde
-  ctx.strokeStyle = "#8CC63F"; // Color verde del logo
-  ctx.lineWidth = 20;
-  ctx.strokeRect(40, 40, 1840, 1000);
-
-  // Dibujar esquinas ornamentales
-  const cornerSize = 100;
-  const corners = [
-    [40, 40], // Esquina superior izquierda
-    [1880 - cornerSize, 40], // Esquina superior derecha
-    [40, 1040 - cornerSize], // Esquina inferior izquierda
-    [1880 - cornerSize, 1040 - cornerSize], // Esquina inferior derecha
-  ];
-
-  corners.forEach(([x, y]) => {
-    ctx.beginPath();
-    ctx.moveTo(x, y + cornerSize);
-    ctx.quadraticCurveTo(x, y, x + cornerSize, y);
-    ctx.strokeStyle = "#8CC63F";
-    ctx.lineWidth = 5;
-    ctx.stroke();
-  });
-
-  // Configurar estilos de texto
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#333333";
-
-  // Título
-  ctx.font = "bold 60px Arial";
-  ctx.fillText("CERTIFICADO", 960, 200);
-
-  // Tipo de Certificado
-  ctx.font = "bold 40px Arial";
-  ctx.fillStyle = "#8CC63F";
-  ctx.fillText(`DE ${data.certificateType}`, 960, 260);
-
-  // Otorgado a
-  ctx.font = "italic 30px Arial";
-  ctx.fillStyle = "#666666";
-  ctx.fillText("Se certifica que", 960, 350);
-
-  // Nombre del participante
-  ctx.font = "bold 50px Arial";
-  ctx.fillStyle = "#333333";
-  ctx.fillText(data.name, 960, 450);
-
-  // Descripción del programa
-  ctx.font = "30px Arial";
-  ctx.fillStyle = "#666666";
-  ctx.fillText(`Ha completado satisfactoriamente el ${data.programType.toLowerCase()}:`, 960, 550);
-  
-  ctx.font = "bold 40px Arial";
-  ctx.fillStyle = "#333333";
-  ctx.fillText(`"${data.programName}"`, 960, 620);
-
-  // Información adicional
-  ctx.font = "20px Arial";
-  ctx.fillStyle = "#888888";
-  ctx.fillText(`Certificado N°: ${data.certificateNumber}`, 960, 900);
-  ctx.fillText(`Fecha de emisión: ${data.issueDate}`, 960, 940);
-
-  return canvas.toBuffer("image/png");
+function generateCertificateSVG(data: CertificateEmailRequest): string {
+  return `
+    <svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+      <!-- Fondo blanco -->
+      <rect width="1920" height="1080" fill="#FFFFFF"/>
+      
+      <!-- Borde ornamental -->
+      <rect x="40" y="40" width="1840" height="1000" 
+        fill="none" stroke="#8CC63F" stroke-width="20"/>
+      
+      <!-- Esquinas ornamentales -->
+      <path d="M40 140 Q40 40 140 40" stroke="#8CC63F" stroke-width="5" fill="none"/>
+      <path d="M1780 40 Q1880 40 1880 140" stroke="#8CC63F" stroke-width="5" fill="none"/>
+      <path d="M40 940 Q40 1040 140 1040" stroke="#8CC63F" stroke-width="5" fill="none"/>
+      <path d="M1780 1040 Q1880 1040 1880 940" stroke="#8CC63F" stroke-width="5" fill="none"/>
+      
+      <!-- Textos -->
+      <text x="960" y="200" font-family="Arial" font-size="60" font-weight="bold" 
+        fill="#333333" text-anchor="middle">CERTIFICADO</text>
+      
+      <text x="960" y="260" font-family="Arial" font-size="40" font-weight="bold" 
+        fill="#8CC63F" text-anchor="middle">DE ${data.certificateType}</text>
+      
+      <text x="960" y="350" font-family="Arial" font-size="30" font-style="italic" 
+        fill="#666666" text-anchor="middle">Se certifica que</text>
+      
+      <text x="960" y="450" font-family="Arial" font-size="50" font-weight="bold" 
+        fill="#333333" text-anchor="middle">${data.name}</text>
+      
+      <text x="960" y="550" font-family="Arial" font-size="30" 
+        fill="#666666" text-anchor="middle">Ha completado satisfactoriamente el ${data.programType.toLowerCase()}:</text>
+      
+      <text x="960" y="620" font-family="Arial" font-size="40" font-weight="bold" 
+        fill="#333333" text-anchor="middle">"${data.programName}"</text>
+      
+      <text x="960" y="900" font-family="Arial" font-size="20" 
+        fill="#888888" text-anchor="middle">Certificado N°: ${data.certificateNumber}</text>
+      
+      <text x="960" y="940" font-family="Arial" font-size="20" 
+        fill="#888888" text-anchor="middle">Fecha de emisión: ${data.issueDate}</text>
+    </svg>
+  `;
 }
 
 serve(async (req) => {
   console.log("Received request to send-certificate-email");
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -122,14 +92,13 @@ serve(async (req) => {
       issueDate
     });
 
-    // Validar campos requeridos
     if (!name || !email || !certificateNumber || !certificateType || !programType || !programName || !issueDate) {
       console.error("Missing required fields");
       throw new Error("Missing required fields");
     }
 
-    // Generar imagen del certificado
-    const certificateImage = await generateCertificateImage({
+    // Generar SVG del certificado
+    const certificateSVG = generateCertificateSVG({
       name,
       email,
       certificateNumber,
@@ -139,12 +108,11 @@ serve(async (req) => {
       issueDate
     });
 
-    // Codificar la imagen en base64
-    const base64Image = certificateImage.toString('base64');
+    // Codificar el SVG en base64
+    const base64SVG = btoa(certificateSVG);
 
-    console.log("Certificate image generated successfully");
+    console.log("Certificate SVG generated successfully");
 
-    // Enviar correo con el certificado
     const emailResponse = await resend.emails.send({
       from: "noreply@resend.dev",
       to: [email],
@@ -160,8 +128,8 @@ serve(async (req) => {
       `,
       attachments: [
         {
-          filename: `certificado-${certificateNumber}.png`,
-          content: base64Image,
+          filename: `certificado-${certificateNumber}.svg`,
+          content: base64SVG,
         },
       ],
     });
