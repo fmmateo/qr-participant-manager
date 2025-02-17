@@ -28,19 +28,43 @@ const ManageParticipants = () => {
 
     try {
       if (tab === 'individual') {
+        console.log('Agregando participante individual:', formData);
+        
+        // Validar email
+        if (!formData.email.includes('@')) {
+          throw new Error('El correo electrónico no es válido');
+        }
+
+        // Verificar si el email ya existe
+        const { data: existingParticipant } = await supabase
+          .from('participants')
+          .select('id')
+          .eq('email', formData.email)
+          .maybeSingle();
+
+        if (existingParticipant) {
+          throw new Error('Ya existe un participante con este correo electrónico');
+        }
+
         // Insertar participante individual
         const { data, error } = await supabase
           .from('participants')
           .insert([
             {
               name: formData.name,
-              email: formData.email
+              email: formData.email,
+              qr_code: crypto.randomUUID() // Generar un UUID único para el QR
             }
           ])
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting participant:', error);
+          throw error;
+        }
+
+        console.log('Participante agregado exitosamente:', data);
 
         // Enviar QR por correo
         await sendQREmail(data);
@@ -57,6 +81,7 @@ const ManageParticipants = () => {
           email: ''
         }));
       } else {
+        console.log('Procesando lista de participantes');
         // Procesar lista de participantes
         const lines = formData.participantList
           .split('\n')
@@ -65,11 +90,30 @@ const ManageParticipants = () => {
 
         const participants = lines.map(line => {
           const [name, email] = line.split(',').map(item => item.trim());
-          return { name, email };
-        }).filter(p => p.name && p.email);
+          if (!email || !email.includes('@')) {
+            throw new Error(`Correo electrónico inválido en la línea: ${line}`);
+          }
+          return { 
+            name, 
+            email,
+            qr_code: crypto.randomUUID()
+          };
+        });
 
         if (participants.length === 0) {
           throw new Error('No se encontraron participantes válidos en la lista');
+        }
+
+        // Verificar emails duplicados
+        const emails = participants.map(p => p.email);
+        const { data: existingParticipants } = await supabase
+          .from('participants')
+          .select('email')
+          .in('email', emails);
+
+        if (existingParticipants && existingParticipants.length > 0) {
+          const existingEmails = existingParticipants.map(p => p.email).join(', ');
+          throw new Error(`Los siguientes correos ya están registrados: ${existingEmails}`);
         }
 
         const { data, error } = await supabase
@@ -77,7 +121,12 @@ const ManageParticipants = () => {
           .insert(participants)
           .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting participants:', error);
+          throw error;
+        }
+
+        console.log('Participantes agregados exitosamente:', data);
 
         // Enviar QRs por correo
         await Promise.all(data.map(participant => sendQREmail(participant)));
@@ -107,6 +156,8 @@ const ManageParticipants = () => {
 
   const sendQREmail = async (participant: { name: string; email: string; qr_code: string }) => {
     try {
+      console.log('Enviando QR por correo a:', participant.email);
+      
       const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
         body: {
           name: participant.name,
@@ -115,16 +166,26 @@ const ManageParticipants = () => {
         },
       });
 
-      if (emailError) throw emailError;
+      if (emailError) {
+        console.error('Error sending QR email:', emailError);
+        throw emailError;
+      }
 
       // Actualizar estado de envío en la base de datos
-      await supabase
+      const { error: updateError } = await supabase
         .from('participants')
         .update({
           qr_sent_at: new Date().toISOString(),
           qr_sent_email_status: 'SENT'
         })
         .eq('email', participant.email);
+
+      if (updateError) {
+        console.error('Error updating participant status:', updateError);
+        throw updateError;
+      }
+
+      console.log('QR enviado exitosamente a:', participant.email);
 
     } catch (error) {
       console.error('Error sending QR email:', error);
@@ -141,15 +202,22 @@ const ManageParticipants = () => {
   };
 
   const handleResendQR = async (email: string) => {
+    if (!email) return;
+    
     setIsSendingQR(true);
     try {
+      console.log('Reenviando QR a:', email);
+      
       const { data: participant, error } = await supabase
         .from('participants')
         .select('name, email, qr_code')
         .eq('email', email)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching participant:', error);
+        throw error;
+      }
 
       await sendQREmail(participant);
 
