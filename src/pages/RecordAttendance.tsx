@@ -73,16 +73,17 @@ const RecordAttendance = () => {
     }
   };
 
-  const handleQrScan = (result: any) => {
+  const handleQrScan = (result: any, error: any) => {
+    if (error) {
+      console.error('Error:', error);
+      setQrError('Error al escanear el código QR');
+      return;
+    }
+    
     if (result) {
       setQrError('');
-      registerAttendance(result?.text);
+      registerAttendance(result.text);
     }
-  };
-
-  const handleQrError = (error: any) => {
-    console.error(error);
-    setQrError('Error al escanear el código QR');
   };
 
   return (
@@ -122,7 +123,6 @@ const RecordAttendance = () => {
                 <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
                   <QrReader
                     onResult={handleQrScan}
-                    onScanError={handleQrError}
                     constraints={{ facingMode: 'environment' }}
                     className="w-full h-full"
                   />
