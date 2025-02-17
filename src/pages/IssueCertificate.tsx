@@ -46,7 +46,7 @@ const IssueCertificate = () => {
 
       // Generar número de certificado único
       const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
-      const issueDate = new Date().toISOString();
+      const issueDate = new Date().toLocaleDateString('es-ES');
 
       console.log('Creating certificate:', {
         participant_id: participant.id,
@@ -54,7 +54,7 @@ const IssueCertificate = () => {
         certificate_number: certificateNumber,
         program_type: programType,
         program_name: programName,
-        issue_date: issueDate,
+        issue_date: new Date().toISOString(),
       });
 
       // Emitir el certificado
@@ -67,7 +67,7 @@ const IssueCertificate = () => {
             certificate_number: certificateNumber,
             program_type: programType,
             program_name: programName,
-            issue_date: issueDate,
+            issue_date: new Date().toISOString(),
           }
         ]);
 
@@ -87,7 +87,7 @@ const IssueCertificate = () => {
           certificateType,
           programType,
           programName,
-          issueDate: new Date(issueDate).toLocaleDateString('es-ES'),
+          issueDate,
         },
       });
 
