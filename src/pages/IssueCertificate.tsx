@@ -31,6 +31,7 @@ const IssueCertificate = () => {
     setIsSubmitting(true);
 
     try {
+      console.log('Finding participant:', email);
       // Primero, buscar el participante por email
       const { data: participant, error: participantError } = await supabase
         .from('participants')
@@ -38,11 +39,23 @@ const IssueCertificate = () => {
         .eq('email', email)
         .single();
 
-      if (participantError) throw new Error('Participante no encontrado');
+      if (participantError) {
+        console.error('Error finding participant:', participantError);
+        throw new Error('Participante no encontrado');
+      }
 
       // Generar número de certificado único
       const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
       const issueDate = new Date().toISOString();
+
+      console.log('Creating certificate:', {
+        participant_id: participant.id,
+        certificate_type: certificateType,
+        certificate_number: certificateNumber,
+        program_type: programType,
+        program_name: programName,
+        issue_date: issueDate,
+      });
 
       // Emitir el certificado
       const { error: certificateError } = await supabase
@@ -58,7 +71,12 @@ const IssueCertificate = () => {
           }
         ]);
 
-      if (certificateError) throw certificateError;
+      if (certificateError) {
+        console.error('Error creating certificate:', certificateError);
+        throw certificateError;
+      }
+
+      console.log('Certificate created, sending email...');
 
       // Enviar el certificado por correo electrónico
       const emailResponse = await supabase.functions.invoke('send-certificate-email', {
@@ -73,7 +91,12 @@ const IssueCertificate = () => {
         },
       });
 
-      if (emailResponse.error) throw new Error('Error al enviar el correo electrónico');
+      if (emailResponse.error) {
+        console.error('Error sending certificate email:', emailResponse.error);
+        throw new Error('Error al enviar el correo electrónico');
+      }
+
+      console.log('Certificate email sent successfully');
 
       // Actualizar el estado de envío en la base de datos
       await supabase

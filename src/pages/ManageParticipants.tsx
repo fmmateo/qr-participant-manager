@@ -69,6 +69,7 @@ const ManageParticipants = () => {
         console.log('Participant added successfully:', data);
 
         try {
+          console.log('Sending QR email to:', data.email);
           const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
             body: {
               name: data.name,
@@ -77,7 +78,12 @@ const ManageParticipants = () => {
             },
           });
 
-          if (emailError) throw emailError;
+          if (emailError) {
+            console.error('Error sending QR email:', emailError);
+            throw emailError;
+          }
+
+          console.log('QR email sent successfully');
 
           await supabase
             .from('participants')
