@@ -1,25 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Tabs,
   TabsContent,
@@ -28,7 +11,9 @@ import {
 } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Pencil, Trash2, LogOut, Eye, Users2 } from "lucide-react";
+import { ArrowLeft, LogOut, Eye, Users2 } from "lucide-react";
+import { ParticipantTable } from "@/components/participants/ParticipantTable";
+import { AttendanceTable } from "@/components/participants/AttendanceTable";
 
 interface Participant {
   id: string;
@@ -51,13 +36,6 @@ const ParticipantList = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(
-    null
-  );
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-  });
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -90,11 +68,15 @@ const ParticipantList = () => {
       const { data, error } = await supabase
         .from("attendance")
         .select(`
-          *,
+          id,
+          participant_id,
+          session_date,
+          attendance_time,
           participant:participants (
             id,
             name,
-            email
+            email,
+            created_at
           )
         `)
         .order("session_date", { ascending: false });
@@ -124,26 +106,12 @@ const ParticipantList = () => {
     navigate("/auth");
   };
 
-  const handleEdit = (participant: Participant) => {
-    setEditingParticipant(participant);
-    setFormData({
-      name: participant.name,
-      email: participant.email,
-    });
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingParticipant) return;
-
+  const handleUpdate = async (id: string, data: { name: string; email: string }) => {
     try {
       const { error } = await supabase
         .from("participants")
-        .update({
-          name: formData.name,
-          email: formData.email,
-        })
-        .eq("id", editingParticipant.id);
+        .update(data)
+        .eq("id", id);
 
       if (error) throw error;
 
@@ -152,7 +120,6 @@ const ParticipantList = () => {
         description: "Participante actualizado correctamente",
       });
 
-      setEditingParticipant(null);
       loadParticipants();
     } catch (error) {
       console.error("Error:", error);
@@ -226,86 +193,11 @@ const ParticipantList = () => {
               {loading ? (
                 <p>Cargando participantes...</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Fecha de Registro</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>{participant.name}</TableCell>
-                        <TableCell>{participant.email}</TableCell>
-                        <TableCell>
-                          {new Date(participant.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(participant)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Editar Participante</DialogTitle>
-                              </DialogHeader>
-                              <form onSubmit={handleUpdate} className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="name">Nombre</Label>
-                                  <Input
-                                    id="name"
-                                    value={formData.name}
-                                    onChange={(e) =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        name: e.target.value,
-                                      }))
-                                    }
-                                    required
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="email">Email</Label>
-                                  <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        email: e.target.value,
-                                      }))
-                                    }
-                                    required
-                                  />
-                                </div>
-                                <Button type="submit" className="w-full">
-                                  Actualizar
-                                </Button>
-                              </form>
-                            </DialogContent>
-                          </Dialog>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(participant.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <ParticipantTable
+                  participants={participants}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                />
               )}
             </TabsContent>
 
@@ -317,30 +209,7 @@ const ParticipantList = () => {
               {loading ? (
                 <p>Cargando registros de asistencia...</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Participante</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Fecha de Sesión</TableHead>
-                      <TableHead>Hora de Registro</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {attendanceRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.participant?.name}</TableCell>
-                        <TableCell>{record.participant?.email}</TableCell>
-                        <TableCell>
-                          {new Date(record.session_date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(record.attendance_time).toLocaleTimeString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <AttendanceTable attendanceRecords={attendanceRecords} />
               )}
             </TabsContent>
           </Tabs>
