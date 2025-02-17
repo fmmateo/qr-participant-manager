@@ -3,7 +3,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import puppeteer from "npm:puppeteer-core@21.5.2";
 import * as Handlebars from "npm:handlebars@4.7.8";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -24,6 +23,8 @@ interface CertificateEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Received request to send-certificate-email");
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -40,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
       issueDate 
     }: CertificateEmailRequest = await req.json();
 
-    console.log("Received request with data:", {
+    console.log("Processing certificate request for:", {
       name,
       email,
       certificateNumber,
@@ -50,16 +51,15 @@ const handler = async (req: Request): Promise<Response> => {
       issueDate
     });
 
-    // Conectar a Supabase
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Faltan las credenciales de Supabase");
+    // Validar campos requeridos
+    if (!name || !email || !certificateNumber || !certificateType || !programType || !programName || !issueDate) {
+      throw new Error("Missing required fields");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    console.log("Supabase client created");
+    // Validar el API key de Resend
+    if (!Deno.env.get("RESEND_API_KEY")) {
+      throw new Error("RESEND_API_KEY not configured");
+    }
 
     // Obtener la plantilla HTML básica
     const basicTemplate = `
@@ -80,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
           .certificate {
             padding: 50px;
-            border: 10px solid {{borderColor}};
+            border: 10px solid #2D3748;
             text-align: center;
             position: relative;
             background: white;
@@ -117,7 +117,7 @@ const handler = async (req: Request): Promise<Response> => {
       </head>
       <body>
         <div class="certificate">
-          <img src="{{logoUrl}}" alt="Logo" class="logo">
+          <img src="https://via.placeholder.com/200x100" alt="Logo" class="logo">
           <h1>Certificado de {{certificateType}}</h1>
           <div class="participant-name">{{participantName}}</div>
           <div class="description">
@@ -133,20 +133,20 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
+    console.log("Compiling certificate template");
+
     // Compilar la plantilla con Handlebars
     const compiledTemplate = Handlebars.compile(basicTemplate);
     const html = compiledTemplate({
       participantName: name,
-      certificateType: certificateType,
+      certificateType,
       programType: programType.toLowerCase(),
       programName,
       certificateNumber,
       issueDate,
-      borderColor: "#2D3748",
-      logoUrl: "https://via.placeholder.com/200x100",
     });
 
-    console.log("Template compiled successfully");
+    console.log("Template compiled, launching browser");
 
     // Generar PDF
     const browser = await puppeteer.launch({
@@ -200,7 +200,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error in send-certificate-email function:", error);
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Error desconocido",

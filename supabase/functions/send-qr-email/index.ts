@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log("Received request");
+  console.log("Received request to send-qr-email");
 
   // Handle CORS
   if (req.method === "OPTIONS") {
@@ -25,6 +25,11 @@ serve(async (req) => {
 
     if (!name || !email || !qrCode) {
       throw new Error("Missing required fields");
+    }
+
+    // Validar el API key de Resend
+    if (!Deno.env.get("RESEND_API_KEY")) {
+      throw new Error("RESEND_API_KEY not configured");
     }
 
     // Generar QR code
@@ -44,7 +49,7 @@ serve(async (req) => {
 
     // Enviar email con QR code
     const data = await resend.emails.send({
-      from: "QR Codes <onboarding@resend.dev>",
+      from: "Asistencias <onboarding@resend.dev>",
       to: [email],
       subject: "Tu código QR de asistencia",
       html: `
