@@ -11,6 +11,7 @@ import RecordAttendance from "./pages/RecordAttendance";
 import IssueCertificate from "./pages/IssueCertificate";
 import Auth from "./pages/Auth";
 import ParticipantList from "./pages/ParticipantList";
+import Registration from "./pages/Registration";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/attendance" element={<RecordAttendance />} />
             <Route path="/certificates" element={<IssueCertificate />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/registration" element={<Registration />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
