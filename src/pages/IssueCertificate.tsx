@@ -40,6 +40,7 @@ const IssueCertificate = () => {
 
       // Generar número de certificado único
       const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
+      const issueDate = new Date().toISOString();
 
       // Emitir el certificado
       const { error: certificateError } = await supabase
@@ -49,14 +50,37 @@ const IssueCertificate = () => {
             participant_id: participant.id,
             certificate_type: certificateType,
             certificate_number: certificateNumber,
+            issue_date: issueDate,
           }
         ]);
 
       if (certificateError) throw certificateError;
 
+      // Enviar el certificado por correo electrónico
+      const emailResponse = await supabase.functions.invoke('send-certificate-email', {
+        body: {
+          name: participant.name,
+          email: email,
+          certificateNumber,
+          certificateType,
+          issueDate: new Date(issueDate).toLocaleDateString('es-ES'),
+        },
+      });
+
+      if (emailResponse.error) throw new Error('Error al enviar el correo electrónico');
+
+      // Actualizar el estado de envío en la base de datos
+      await supabase
+        .from('certificates')
+        .update({
+          sent_at: new Date().toISOString(),
+          sent_email_status: 'SUCCESS',
+        })
+        .eq('certificate_number', certificateNumber);
+
       toast({
         title: "¡Éxito!",
-        description: `Certificado emitido correctamente para ${participant.name}`,
+        description: `Certificado emitido y enviado correctamente a ${participant.name}`,
       });
 
       // Limpiar el formulario
@@ -91,7 +115,7 @@ const IssueCertificate = () => {
             <div className="space-y-2">
               <h1 className="text-3xl font-bold">Emitir Certificado</h1>
               <p className="text-muted-foreground">
-                Genera un certificado para un participante.
+                Genera y envía un certificado para un participante.
               </p>
             </div>
 
@@ -131,7 +155,7 @@ const IssueCertificate = () => {
                 className="w-full"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Procesando...' : 'Emitir Certificado'}
+                {isSubmitting ? 'Procesando...' : 'Emitir y Enviar Certificado'}
                 <Award className="ml-2 h-4 w-4" />
               </Button>
             </form>
