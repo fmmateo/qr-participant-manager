@@ -12,6 +12,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { QrReader } from "react-qr-reader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface QrData {
+  name: string;
+  email: string;
+  qrCode: string;
+  timestamp: string;
+}
+
 const RecordAttendance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -29,13 +36,25 @@ const RecordAttendance = () => {
   const registerAttendance = async (participantIdentifier: string) => {
     setIsSubmitting(true);
     try {
-      console.log('Buscando participante:', participantIdentifier);
+      console.log('Procesando identificador:', participantIdentifier);
       
-      // Primero, buscar el participante por email o código QR
+      let searchQuery;
+      
+      try {
+        // Intentar parsear el QR si es un JSON válido
+        const qrData: QrData = JSON.parse(participantIdentifier);
+        searchQuery = qrData.qrCode;
+        console.log('Datos del QR:', qrData);
+      } catch {
+        // Si no es JSON válido, usar el identificador directamente (email)
+        searchQuery = participantIdentifier;
+      }
+      
+      // Buscar el participante
       const { data: participant, error: participantError } = await supabase
         .from('participants')
-        .select('id')
-        .or(`email.eq."${participantIdentifier}",qr_code.eq."${participantIdentifier}"`)
+        .select('id, name')
+        .or(`email.eq."${searchQuery}",qr_code.eq."${searchQuery}"`)
         .single();
 
       if (participantError) {
@@ -53,7 +72,7 @@ const RecordAttendance = () => {
       // Verificar si ya existe un registro para esta fecha
       const { data: existingAttendance, error: checkError } = await supabase
         .from('attendance')
-        .select('id')
+        .select('id, attendance_time')
         .eq('participant_id', participant.id)
         .eq('session_date', date.toISOString().split('T')[0])
         .maybeSingle();
@@ -64,16 +83,16 @@ const RecordAttendance = () => {
       }
 
       if (existingAttendance) {
-        console.log('Asistencia ya registrada para esta fecha');
+        const attendanceTime = new Date(existingAttendance.attendance_time).toLocaleTimeString();
         toast({
-          title: "Aviso",
-          description: "La asistencia ya fue registrada para este participante en esta fecha",
+          title: "Asistencia ya registrada",
+          description: `${participant.name} ya registró asistencia hoy a las ${attendanceTime}`,
           variant: "default",
         });
         return;
       }
 
-      // Si no existe, registrar la asistencia
+      // Registrar la nueva asistencia
       const { error: attendanceError } = await supabase
         .from('attendance')
         .insert([
@@ -90,8 +109,8 @@ const RecordAttendance = () => {
       }
 
       toast({
-        title: "¡Éxito!",
-        description: "Asistencia registrada correctamente.",
+        title: "¡Asistencia registrada!",
+        description: `Se registró la asistencia de ${participant.name} correctamente.`,
       });
 
       // Limpiar el formulario
@@ -109,16 +128,15 @@ const RecordAttendance = () => {
   };
 
   const handleQrScan = (result: any) => {
-    if (!isScanning) return;
+    if (!isScanning || !result) return;
     
-    if (result) {
-      setIsScanning(false);
-      setQrError('');
-      registerAttendance(result.text).then(() => {
-        // Reactivar el escáner después de un breve delay
-        setTimeout(() => setIsScanning(true), 2000);
-      });
-    }
+    setIsScanning(false);
+    setQrError('');
+    
+    registerAttendance(result.text).then(() => {
+      // Reactivar el escáner después de un breve delay
+      setTimeout(() => setIsScanning(true), 2000);
+    });
   };
 
   return (
