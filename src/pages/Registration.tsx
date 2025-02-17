@@ -1,11 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Send } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,14 +20,37 @@ import type { Program } from "@/types/program";
 
 const Registration = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const registrationToken = searchParams.get('token');
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isValidToken, setIsValidToken] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     programId: ''
   });
+
+  useEffect(() => {
+    // Verificar el token
+    const validateToken = async () => {
+      // En este ejemplo, verificamos si existe un token
+      // En producción, deberías validar contra un token seguro generado
+      if (!registrationToken) {
+        toast({
+          title: "Acceso Denegado",
+          description: "No tienes permiso para acceder a esta página",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+      setIsValidToken(true);
+    };
+
+    validateToken();
+  }, [registrationToken, navigate, toast]);
 
   const { data: programs, isLoading: isLoadingPrograms } = useQuery({
     queryKey: ['active-programs'],
@@ -45,10 +68,10 @@ const Registration = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidToken) return;
     setIsSubmitting(true);
 
     try {
-      // Crear o actualizar participante
       const { data: participant, error: participantError } = await supabase
         .from('participants')
         .upsert({
@@ -62,7 +85,6 @@ const Registration = () => {
 
       if (participantError) throw participantError;
 
-      // Crear registro
       const { error: registrationError } = await supabase
         .from('registrations')
         .insert([{
@@ -73,7 +95,6 @@ const Registration = () => {
 
       if (registrationError) throw registrationError;
 
-      // Enviar correo de confirmación
       const { error: emailError } = await supabase.functions.invoke('send-registration-email', {
         body: {
           name: formData.name,
@@ -91,7 +112,6 @@ const Registration = () => {
         description: "Te hemos enviado un correo de confirmación.",
       });
 
-      // Limpiar formulario
       setFormData({
         name: '',
         email: '',
@@ -110,18 +130,13 @@ const Registration = () => {
     }
   };
 
+  if (!isValidToken) {
+    return null; // No mostrar nada mientras se valida el token
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8">
-        <Button 
-          variant="ghost" 
-          className="mb-6"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver
-        </Button>
-
         <Card className="p-6">
           <div className="space-y-6">
             <div className="space-y-2">
