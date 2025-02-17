@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -24,7 +24,8 @@ const Registration = () => {
   const registrationToken = searchParams.get('token');
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isValidAccess, setIsValidAccess] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,23 +34,32 @@ const Registration = () => {
   });
 
   useEffect(() => {
-    // Verificar el token
-    const validateToken = async () => {
-      // En este ejemplo, verificamos si existe un token
-      // En producción, deberías validar contra un token seguro generado
-      if (!registrationToken) {
-        toast({
-          title: "Acceso Denegado",
-          description: "No tienes permiso para acceder a esta página",
-          variant: "destructive",
-        });
-        navigate('/');
+    const checkAccess = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Si hay un token de registro, permitir acceso
+      if (registrationToken) {
+        setIsValidAccess(true);
         return;
       }
-      setIsValidToken(true);
+
+      // Si no hay token, verificar si es administrador
+      if (session) {
+        setIsAdmin(true);
+        setIsValidAccess(true);
+        return;
+      }
+
+      // Si no hay token ni es admin, denegar acceso
+      toast({
+        title: "Acceso Denegado",
+        description: "No tienes permiso para acceder a esta página",
+        variant: "destructive",
+      });
+      navigate('/');
     };
 
-    validateToken();
+    checkAccess();
   }, [registrationToken, navigate, toast]);
 
   const { data: programs, isLoading: isLoadingPrograms } = useQuery({
@@ -68,7 +78,7 @@ const Registration = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidToken) return;
+    if (!isValidAccess) return;
     setIsSubmitting(true);
 
     try {
@@ -130,13 +140,24 @@ const Registration = () => {
     }
   };
 
-  if (!isValidToken) {
-    return null; // No mostrar nada mientras se valida el token
+  if (!isValidAccess) {
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8">
+        {isAdmin && (
+          <Button 
+            variant="ghost" 
+            className="mb-6"
+            onClick={() => navigate('/participants/list')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver al Panel
+          </Button>
+        )}
+
         <Card className="p-6">
           <div className="space-y-6">
             <div className="space-y-2">
