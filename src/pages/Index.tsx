@@ -68,15 +68,16 @@ const Index = () => {
               </p>
             </Card>
           </Link>
-        </div>
 
-        <div className="flex justify-center">
-          <Link to="/auth">
-            <Button variant="outline">
-              <LogIn className="mr-2 h-4 w-4" />
-              Acceso Administrativo
-            </Button>
-          </Link>
+          <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+            <Link to="/auth" className="flex flex-col items-center">
+              <Users2 className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Acceso Administrativo</h2>
+              <p className="text-muted-foreground text-center">
+                Accede al panel de administración
+              </p>
+            </Link>
+          </Card>
         </div>
       </div>
     </div>
