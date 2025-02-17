@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import QRCode from "npm:qrcode@1.5.3";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -36,20 +35,43 @@ serve(async (req) => {
     }
     console.log("RESEND_API_KEY is configured");
 
-    // Generar QR code
+    // Generar QR code usando la API externa
     console.log("Generating QR code...");
-    const qrCodeDataUrl = await QRCode.toDataURL(qrCode, {
-      width: 300,
-      margin: 2,
-      color: {
-        dark: "#000000",
-        light: "#ffffff",
-      },
-    });
-    console.log("QR code generated successfully");
+    const qrToken = Deno.env.get("QR_CODE_GENERATOR_TOKEN");
+    if (!qrToken) {
+      throw new Error("QR_CODE_GENERATOR_TOKEN not configured");
+    }
 
-    // Convertir data URL a base64
-    const base64Data = qrCodeDataUrl.split(",")[1];
+    const participantData = {
+      name,
+      email,
+      qrCode,
+      timestamp: new Date().toISOString()
+    };
+
+    const qrResponse = await fetch(
+      `https://api.qr-code-generator.com/v1/create?access-token=${qrToken}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        frame_name: "no-frame",
+        qr_code_text: JSON.stringify(participantData),
+        image_format: "PNG",
+        qr_code_logo: "scan-me-square",
+        foreground_color: "#000000",
+        background_color: "#ffffff",
+      })
+    });
+
+    if (!qrResponse.ok) {
+      throw new Error(`Error generating QR code: ${qrResponse.statusText}`);
+    }
+
+    const qrImageBuffer = await qrResponse.arrayBuffer();
+    const qrBase64 = btoa(String.fromCharCode(...new Uint8Array(qrImageBuffer)));
+    console.log("QR code generated successfully");
 
     console.log("Attempting to send email...");
     // Enviar email con QR code
@@ -71,7 +93,7 @@ serve(async (req) => {
       attachments: [
         {
           filename: "qr-code.png",
-          content: base64Data,
+          content: qrBase64,
           base64: true,
           cid: "qr-code",
         },
