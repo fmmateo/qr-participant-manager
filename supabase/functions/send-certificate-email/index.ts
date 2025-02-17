@@ -15,6 +15,8 @@ interface CertificateEmailRequest {
   email: string;
   certificateNumber: string;
   certificateType: string;
+  programType: string;
+  programName: string;
   issueDate: string;
 }
 
@@ -24,7 +26,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { name, email, certificateNumber, certificateType, issueDate }: CertificateEmailRequest = await req.json();
+    const { 
+      name, 
+      email, 
+      certificateNumber, 
+      certificateType, 
+      programType,
+      programName,
+      issueDate 
+    }: CertificateEmailRequest = await req.json();
 
     const getCertificateTypeText = (type: string) => {
       switch (type) {
@@ -35,17 +45,27 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
+    const getProgramTypeText = (type: string) => {
+      switch (type) {
+        case "CURSO": return "Curso";
+        case "TALLER": return "Taller";
+        case "DIPLOMADO": return "Diplomado";
+        default: return type;
+      }
+    };
+
     const emailResponse = await resend.emails.send({
       from: "Certificados <onboarding@resend.dev>",
       to: [email],
-      subject: `Tu certificado de ${getCertificateTypeText(certificateType)}`,
+      subject: `Tu certificado de ${getCertificateTypeText(certificateType)} - ${getProgramTypeText(programType)}`,
       html: `
         <h1>¡Hola ${name}!</h1>
-        <p>Adjuntamos tu certificado de ${getCertificateTypeText(certificateType)}.</p>
+        <p>Adjuntamos tu certificado de ${getCertificateTypeText(certificateType)} del ${getProgramTypeText(programType).toLowerCase()} "${programName}".</p>
         <p>Detalles del certificado:</p>
         <ul>
           <li>Número de certificado: ${certificateNumber}</li>
           <li>Tipo: ${getCertificateTypeText(certificateType)}</li>
+          <li>Programa: ${getProgramTypeText(programType)} - ${programName}</li>
           <li>Fecha de emisión: ${issueDate}</li>
         </ul>
         <p>Gracias por tu participación.</p>

@@ -76,6 +76,8 @@ export type Database = {
           id: string
           issue_date: string
           participant_id: string
+          program_name: string
+          program_type: string
           sent_at: string | null
           sent_email_status: string | null
           template_id: string | null
@@ -88,6 +90,8 @@ export type Database = {
           id?: string
           issue_date?: string
           participant_id: string
+          program_name: string
+          program_type: string
           sent_at?: string | null
           sent_email_status?: string | null
           template_id?: string | null
@@ -100,6 +104,8 @@ export type Database = {
           id?: string
           issue_date?: string
           participant_id?: string
+          program_name?: string
+          program_type?: string
           sent_at?: string | null
           sent_email_status?: string | null
           template_id?: string | null

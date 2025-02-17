@@ -22,6 +22,8 @@ const IssueCertificate = () => {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [certificateType, setCertificateType] = useState('');
+  const [programType, setProgramType] = useState('');
+  const [programName, setProgramName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,6 +52,8 @@ const IssueCertificate = () => {
             participant_id: participant.id,
             certificate_type: certificateType,
             certificate_number: certificateNumber,
+            program_type: programType,
+            program_name: programName,
             issue_date: issueDate,
           }
         ]);
@@ -63,6 +67,8 @@ const IssueCertificate = () => {
           email: email,
           certificateNumber,
           certificateType,
+          programType,
+          programName,
           issueDate: new Date(issueDate).toLocaleDateString('es-ES'),
         },
       });
@@ -86,6 +92,8 @@ const IssueCertificate = () => {
       // Limpiar el formulario
       setEmail('');
       setCertificateType('');
+      setProgramType('');
+      setProgramName('');
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -131,6 +139,39 @@ const IssueCertificate = () => {
                   required
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="programType">Tipo de programa</Label>
+                <Select
+                  value={programType}
+                  onValueChange={setProgramType}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona el tipo de programa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="CURSO">Curso</SelectItem>
+                      <SelectItem value="TALLER">Taller</SelectItem>
+                      <SelectItem value="DIPLOMADO">Diplomado</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="programName">Nombre del programa</Label>
+                <Input
+                  id="programName"
+                  type="text"
+                  value={programName}
+                  onChange={(e) => setProgramName(e.target.value)}
+                  placeholder="Ej: Desarrollo Web Full Stack"
+                  required
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="certificateType">Tipo de certificado</Label>
                 <Select
@@ -150,6 +191,7 @@ const IssueCertificate = () => {
                   </SelectContent>
                 </Select>
               </div>
+
               <Button 
                 type="submit" 
                 className="w-full"
