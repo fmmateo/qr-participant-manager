@@ -361,13 +361,16 @@ export type Database = {
       }
     }
     Functions: {
-      check_is_super_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       cleanup_inactive_devices: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      fetch_admin_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          is_super: boolean
+          is_admin: boolean
+        }[]
       }
       refresh_attendance_summary: {
         Args: Record<PropertyKey, never>

@@ -48,7 +48,6 @@ const AdminUsers = () => {
 
   useEffect(() => {
     checkAccess();
-    loadAdminUsers();
   }, []);
 
   const checkAccess = async () => {
@@ -59,13 +58,11 @@ const AdminUsers = () => {
         return;
       }
 
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (!adminUser?.is_super_admin) {
+      const { data, error } = await supabase.rpc('fetch_admin_status');
+      
+      if (error) throw error;
+      
+      if (!data?.[0]?.is_super) {
         toast({
           title: "Acceso Denegado",
           description: "No tienes permisos de super administrador",
@@ -76,6 +73,7 @@ const AdminUsers = () => {
       }
 
       setIsSuperAdmin(true);
+      loadAdminUsers();
     } catch (error) {
       console.error('Error:', error);
       navigate("/participants/list");
@@ -84,7 +82,7 @@ const AdminUsers = () => {
 
   const loadAdminUsers = async () => {
     try {
-      // Intentamos cargar todos los usuarios admin - la política RLS se encargará de filtrar según los permisos
+      setLoading(true);
       const { data: adminUsersData, error: adminError } = await supabase
         .from('admin_users')
         .select('*');
