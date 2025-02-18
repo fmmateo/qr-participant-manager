@@ -1,17 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface CertificateEmailRequest {
@@ -39,116 +32,6 @@ async function getAssetUrl(name: string): Promise<string> {
   return asset.asset_url;
 }
 
-async function generateCertificateSVG(data: CertificateEmailRequest): Promise<string> {
-  try {
-    const [cornerDecorationUrl, logoUrl] = await Promise.all([
-      getAssetUrl('corner_decoration'),
-      getAssetUrl('logo')
-    ]);
-
-    const certificateTypeText = data.certificateType.toLowerCase() === 'participacion' 
-      ? 'PARTICIPACIÓN' 
-      : data.certificateType === 'APROBACION' 
-        ? 'APROBACIÓN' 
-        : 'ASISTENCIA';
-
-    return `
-      <svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
-            <stop offset="50%" style="stop-color:#FFF7C2;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#FFD700;stop-opacity:1" />
-          </linearGradient>
-          
-          <linearGradient id="greenBackground" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#004d1a;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#006622;stop-opacity:1" />
-          </linearGradient>
-        </defs>
-
-        <rect width="1920" height="1080" fill="url(#greenBackground)"/>
-        
-        <rect x="40" y="40" width="1840" height="1000" 
-          fill="none" 
-          stroke="url(#goldBorder)" 
-          stroke-width="4"/>
-
-        <image x="20" y="20" width="200" height="200" href="${cornerDecorationUrl}" />
-        <image x="1700" y="20" width="200" height="200" transform="scale(-1,1) translate(-3600,0)" href="${cornerDecorationUrl}" />
-        <image x="20" y="860" width="200" height="200" transform="scale(1,-1) translate(0,-1920)" href="${cornerDecorationUrl}" />
-        <image x="1700" y="860" width="200" height="200" transform="scale(-1,-1) translate(-3600,-1920)" href="${cornerDecorationUrl}" />
-
-        <image x="810" y="80" width="300" height="300" href="${logoUrl}" />
-
-        <text x="960" y="420" 
-          font-family="Arial" 
-          font-size="50" 
-          font-weight="bold" 
-          fill="#FFD700"
-          text-anchor="middle">
-          CONSEJO NACIONAL DE COOPERATIVAS
-        </text>
-        
-        <text x="960" y="480" 
-          font-family="Arial" 
-          font-size="60" 
-          font-weight="bold" 
-          fill="#FFD700"
-          text-anchor="middle">
-          CONAPCOOP
-        </text>
-
-        <text x="960" y="580" 
-          font-family="Arial" 
-          font-size="40" 
-          font-weight="bold" 
-          fill="#FFFFFF"
-          text-anchor="middle">
-          Otorga el presente certificado de ${certificateTypeText} a:
-        </text>
-
-        <text x="960" y="680" 
-          font-family="Arial" 
-          font-size="60" 
-          font-weight="bold" 
-          fill="#FFD700"
-          text-anchor="middle">
-          ${data.name}
-        </text>
-
-        <text x="960" y="780" 
-          font-family="Arial" 
-          font-size="35" 
-          fill="#FFFFFF"
-          text-anchor="middle">
-          Por su ${certificateTypeText.toLowerCase()} en el ${data.programType.toLowerCase()}:
-        </text>
-
-        <text x="960" y="850" 
-          font-family="Arial" 
-          font-size="45" 
-          font-weight="bold" 
-          fill="#FFD700"
-          text-anchor="middle">
-          "${data.programName}"
-        </text>
-
-        <text x="960" y="950" 
-          font-family="Arial" 
-          font-size="25" 
-          fill="#FFFFFF"
-          text-anchor="middle">
-          Certificado N°: ${data.certificateNumber} | Fecha de emisión: ${data.issueDate}
-        </text>
-      </svg>
-    `;
-  } catch (error) {
-    console.error('Error generating certificate SVG:', error);
-    throw error;
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -165,7 +48,7 @@ serve(async (req) => {
       issueDate 
     }: CertificateEmailRequest = await req.json();
 
-    console.log("Processing certificate request for:", {
+    console.log("Procesando solicitud de certificado para:", {
       name,
       email,
       certificateNumber,
@@ -175,50 +58,142 @@ serve(async (req) => {
       issueDate
     });
 
-    const certificateSVG = await generateCertificateSVG({
-      name,
-      email,
-      certificateNumber,
-      certificateType,
-      programType,
-      programName,
-      issueDate
-    });
+    const certificateTypeText = certificateType.toLowerCase() === 'participacion' 
+      ? 'PARTICIPACIÓN' 
+      : certificateType === 'APROBACION' 
+        ? 'APROBACIÓN' 
+        : 'ASISTENCIA';
 
-    const base64SVG = btoa(certificateSVG);
+    // Convertir el certificado a una imagen usando una API de renderizado HTML a PNG
+    const certificateHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #004d1a 0%, #006622 100%);
+            font-family: Arial, sans-serif;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+          }
+          .certificate {
+            border: 4px solid #FFD700;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          .title {
+            color: #FFD700;
+            font-size: 32px;
+            margin-bottom: 20px;
+          }
+          .subtitle {
+            color: #FFD700;
+            font-size: 24px;
+            margin-bottom: 40px;
+          }
+          .name {
+            color: #FFD700;
+            font-size: 48px;
+            margin: 30px 0;
+          }
+          .details {
+            margin: 20px 0;
+            font-size: 18px;
+          }
+          .program {
+            color: #FFD700;
+            font-size: 28px;
+            margin: 20px 0;
+          }
+          .footer {
+            font-size: 16px;
+            margin-top: 40px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <div class="title">CONSEJO NACIONAL DE COOPERATIVAS</div>
+          <div class="subtitle">CONAPCOOP</div>
+          
+          <div class="details">
+            Otorga el presente certificado de ${certificateTypeText} a:
+          </div>
+          
+          <div class="name">${name}</div>
+          
+          <div class="details">
+            Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:
+          </div>
+          
+          <div class="program">"${programName}"</div>
+          
+          <div class="footer">
+            Certificado N°: ${certificateNumber}<br>
+            Fecha de emisión: ${issueDate}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-    console.log("Certificate SVG generated successfully");
+    // Codificar el HTML para la API
+    const encodedHtml = encodeURIComponent(certificateHtml);
+    
+    // Usar un servicio de conversión HTML a PNG
+    const certificateImageUrl = `https://api.apiflash.com/v1/urltoimage?access_key=ACCESS_KEY&url=data:text/html;charset=utf-8,${encodedHtml}&format=png&width=1000&height=1414&response_type=json`;
 
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+    // En modo desarrollo/pruebas, enviamos solo a la dirección verificada
+    const isDevelopment = !Deno.env.get("PRODUCTION");
+    const toEmail = isDevelopment ? "fmmateo98@gmail.com" : email;
+
+    console.log("Enviando certificado por email a:", toEmail);
+    
     const emailResponse = await resend.emails.send({
-      from: "noreply@resend.dev",
-      to: [email],
+      from: "Certificados <onboarding@resend.dev>",
+      to: [toEmail],
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #004d1a; text-align: center;">Tu Certificado CONAPCOOP</h1>
           <p style="color: #666;">Estimado/a ${name},</p>
           <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <img src="${certificateImageUrl}" alt="Certificado" style="max-width: 100%; height: auto; border: 1px solid #ddd;">
+          </div>
           <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
           <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
           <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
+          ${isDevelopment ? `<p style="color: red;">MODO DESARROLLO: Email original destinado a: ${email}</p>` : ''}
         </div>
       `,
       attachments: [
         {
-          filename: `certificado-${certificateNumber}.svg`,
-          content: base64SVG,
+          filename: `certificado-${certificateNumber}.png`,
+          content: await fetch(certificateImageUrl).then(res => res.arrayBuffer())
         },
       ],
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email enviado exitosamente:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error in send-certificate-email function:", error);
+    console.error("Error en send-certificate-email:", error);
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Error desconocido",
