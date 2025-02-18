@@ -86,21 +86,32 @@ serve(async (req) => {
 </body>
 </html>`;
 
-    // Crear una URL temporal para el HTML usando htmlbin.com
+    // Crear una URL temporal para el HTML usando paste.ee
     console.log("Creando URL temporal para el HTML...");
-    const htmlbinResponse = await fetch("https://htmlbin.com/", {
+    const pasteResponse = await fetch("https://api.paste.ee/v1/pastes", {
       method: "POST",
       headers: {
-        "Content-Type": "text/plain",
+        "Content-Type": "application/json",
+        "X-Auth-Token": "2hRBg1BSMGXxhJzvTFMWVfqXGiJ3t94jDcGROqw4I"
       },
-      body: certificateHtml,
+      body: JSON.stringify({
+        description: "Certificate HTML",
+        sections: [
+          {
+            name: "certificate.html",
+            syntax: "html",
+            contents: certificateHtml
+          }
+        ]
+      })
     });
 
-    if (!htmlbinResponse.ok) {
+    if (!pasteResponse.ok) {
       throw new Error("Error al crear URL temporal para el HTML");
     }
 
-    const htmlUrl = await htmlbinResponse.text();
+    const pasteData = await pasteResponse.json();
+    const htmlUrl = `https://paste.ee/r/${pasteData.id}`;
     console.log("URL temporal creada:", htmlUrl);
 
     // Construir la URL de APIFlash
