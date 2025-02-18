@@ -46,7 +46,7 @@ const AdminUsers = () => {
       }
 
       const userIds = adminUsersData.map(admin => admin.user_id);
-      const uniqueUserIds = [...new Set(userIds)];
+      const uniqueUserIds = [...new Set(userIds)].filter((id): id is string => id !== null);
       
       const usersPromises = uniqueUserIds.map(async (userId) => {
         const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
@@ -61,11 +61,11 @@ const AdminUsers = () => {
 
       const combinedData: AdminUserWithEmail[] = adminUsersData.map(admin => ({
         id: admin.id,
+        email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
         is_super_admin: admin.is_super_admin ?? false,
         is_active: admin.is_active ?? false,
         created_at: admin.created_at,
-        updated_at: admin.updated_at,
-        email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado'
+        updated_at: admin.updated_at
       }));
 
       setAdminUsers(combinedData);
