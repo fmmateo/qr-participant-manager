@@ -28,27 +28,51 @@ const AdminUsers = () => {
   const loadAdminUsers = async () => {
     try {
       setLoading(true);
+      
+      // Primero verificamos si el usuario actual es administrador
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        throw userError;
+      }
+
+      if (!userData.user) {
+        navigate("/auth");
+        return;
+      }
+
+      // Obtenemos los datos de administradores con la nueva política
       const { data: adminUsersData, error: adminError } = await supabase
         .from('admin_users')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (adminError) {
-        if (adminError.code === 'PGRST116') {
-          navigate("/auth");
-          return;
-        }
         throw adminError;
       }
-      
+
       if (!adminUsersData || adminUsersData.length === 0) {
         setAdminUsers([]);
         setLoading(false);
         return;
       }
 
-      const { data: authData } = await supabase.auth.admin.listUsers();
-      const users = (authData?.users || []) as AuthUser[];
+      // Obtenemos los datos de los usuarios
+      const userIds = adminUsersData.map(admin => admin.user_id);
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      const usersPromises = uniqueUserIds.map(async (userId) => {
+        const { data: { user }, error } = await supabase.auth.admin.getUserById(userId as string);
+        if (error) {
+          console.error('Error fetching user:', error);
+          return null;
+        }
+        return user;
+      });
 
+      const users = (await Promise.all(usersPromises)).filter((user): user is AuthUser => user !== null);
+
+      // Combinamos los datos
       const combinedData = adminUsersData.map(admin => ({
         id: admin.id,
         email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
