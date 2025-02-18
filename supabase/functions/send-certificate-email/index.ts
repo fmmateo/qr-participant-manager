@@ -49,8 +49,15 @@ serve(async (req) => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    // Convertir el certificado a una imagen usando una API de renderizado HTML a PNG
-    const certificateHtml = `
+    const apiFlashKey = Deno.env.get("APIFLASH_ACCESS_KEY");
+    
+    if (!apiFlashKey) {
+      throw new Error("APIFlash access key no está configurada");
+    }
+
+    // Crear un objeto URL temporal para el HTML
+    const tempHtmlUrl = new URL('https://temporary-html-url.com');
+    tempHtmlUrl.searchParams.set('html', `
       <!DOCTYPE html>
       <html>
       <head>
@@ -138,28 +145,37 @@ serve(async (req) => {
         </div>
       </body>
       </html>
-    `;
+    `);
 
-    // Codificar el HTML para la API
-    const encodedHtml = encodeURIComponent(certificateHtml);
-    const apiFlashKey = Deno.env.get("APIFLASH_ACCESS_KEY");
-    
-    if (!apiFlashKey) {
-      throw new Error("APIFlash access key no está configurada");
-    }
-
-    // Usar APIFlash para convertir HTML a PNG
-    const certificateImageUrl = `https://api.apiflash.com/v1/urltoimage?access_key=${apiFlashKey}&url=data:text/html;charset=utf-8,${encodedHtml}&format=png&width=1000&height=1414&quality=100`;
+    // Construir la URL de APIFlash con los parámetros correctos
+    const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
+    apiFlashUrl.searchParams.set('access_key', apiFlashKey);
+    apiFlashUrl.searchParams.set('format', 'png');
+    apiFlashUrl.searchParams.set('width', '1000');
+    apiFlashUrl.searchParams.set('height', '1414');
+    apiFlashUrl.searchParams.set('quality', '100');
+    apiFlashUrl.searchParams.set('response_type', 'json');
+    apiFlashUrl.searchParams.set('url', tempHtmlUrl.toString());
 
     console.log("Generando imagen del certificado con APIFlash...");
     
     // Obtener la imagen del certificado
-    const certificateResponse = await fetch(certificateImageUrl);
+    const certificateResponse = await fetch(apiFlashUrl.toString());
     if (!certificateResponse.ok) {
-      throw new Error(`Error al generar el certificado: ${certificateResponse.statusText}`);
+      const errorText = await certificateResponse.text();
+      throw new Error(`Error al generar el certificado: ${certificateResponse.statusText}. Detalles: ${errorText}`);
     }
     
-    const certificateBuffer = await certificateResponse.arrayBuffer();
+    const certificateJson = await certificateResponse.json();
+    const imageUrl = certificateJson.url;
+
+    // Descargar la imagen generada
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Error al descargar la imagen del certificado: ${imageResponse.statusText}`);
+    }
+
+    const certificateBuffer = await imageResponse.arrayBuffer();
     console.log("Imagen del certificado generada exitosamente");
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
