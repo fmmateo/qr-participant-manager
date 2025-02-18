@@ -89,17 +89,17 @@ serve(async (req) => {
 
     console.log("Generando imagen del certificado con APIFlash...");
 
-    // Usar APIFlash directamente con el HTML como source
+    // Usar APIFlash con el parámetro html y configuración correcta
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
-    apiFlashUrl.searchParams.set('source', certificateHtml);
+    apiFlashUrl.searchParams.set('html', certificateHtml);
     apiFlashUrl.searchParams.set('format', 'png');
     apiFlashUrl.searchParams.set('width', '1000');
     apiFlashUrl.searchParams.set('height', '1414');
     apiFlashUrl.searchParams.set('quality', '100');
     apiFlashUrl.searchParams.set('full_page', 'true');
     apiFlashUrl.searchParams.set('fresh', 'true');
-    apiFlashUrl.searchParams.set('wait_until', 'networkidle0');
+    apiFlashUrl.searchParams.set('wait_until', 'load');
 
     console.log("URL de APIFlash:", apiFlashUrl.toString());
     
