@@ -61,8 +61,8 @@ const AdminUsers = () => {
 
       const combinedData: AdminUserWithEmail[] = adminUsersData.map(admin => ({
         id: admin.id,
-        is_super_admin: admin.is_super_admin,
-        is_active: admin.is_active,
+        is_super_admin: admin.is_super_admin ?? false,
+        is_active: admin.is_active ?? false,
         created_at: admin.created_at,
         updated_at: admin.updated_at,
         email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado'
