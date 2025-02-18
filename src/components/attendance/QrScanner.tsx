@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { QrReader } from "react-qr-reader";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -20,32 +19,216 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [usbBuffer, setUsbBuffer] = useState<string>('');
   const { toast } = useToast();
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   // Registrar dispositivo móvil
   const registerMobileDevice = useCallback(async () => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      const mobileDeviceId = 'mobile-' + navigator.userAgent;
-      const mobileDevice: Device = {
-        deviceId: mobileDeviceId,
-        label: 'Dispositivo Móvil',
-        type: 'mobile'
-      };
-      
-      try {
-        await registerDevice(mobileDevice);
-        // Seleccionar automáticamente el dispositivo móvil
-        setSelectedDevice(mobileDeviceId);
-      } catch (error) {
-        console.error('Error al registrar dispositivo móvil:', error);
-      }
+    if (!isMobile) return;
+    
+    console.log('Registrando dispositivo móvil...');
+    const mobileDeviceId = 'mobile-' + navigator.userAgent;
+    const mobileDevice: Device = {
+      deviceId: mobileDeviceId,
+      label: 'Dispositivo Móvil',
+      type: 'mobile'
+    };
+    
+    try {
+      await registerDevice(mobileDevice);
+      // Seleccionar automáticamente el dispositivo móvil
+      setSelectedDevice(mobileDeviceId);
+    } catch (error) {
+      console.error('Error al registrar dispositivo móvil:', error);
     }
-  }, []);
+  }, [isMobile]);
+
+  // Registrar dispositivo en la base de datos
+  const registerDevice = async (device: Device) => {
+    console.log('Intentando registrar dispositivo:', device);
+    try {
+      const deviceData = {
+        device_id: device.deviceId,
+        device_label: device.label,
+        device_type: device.type,
+        last_seen: new Date().toISOString(),
+        is_active: true
+      };
+
+      // Primero intentamos actualizar si existe
+      const { error: updateError } = await supabase
+        .from('connected_devices')
+        .upsert(deviceData, {
+          onConflict: 'device_id'
+        });
+
+      if (updateError) throw updateError;
+      
+      console.log('Dispositivo registrado exitosamente:', device.label);
+      toast({
+        title: "Dispositivo conectado",
+        description: `${device.label} está listo para escanear`,
+      });
+
+      // Actualizar la lista de dispositivos conectados
+      await updateConnectedDevices();
+    } catch (error) {
+      console.error('Error al registrar dispositivo:', error);
+      toast({
+        title: "Error al conectar dispositivo",
+        description: "No se pudo registrar el dispositivo en el sistema.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
 
   // Efecto para registro inicial de dispositivo móvil
   useEffect(() => {
+    console.log('Iniciando registro de dispositivo móvil...');
     registerMobileDevice();
   }, [registerMobileDevice]);
+
+  // Obtener dispositivos locales
+  useEffect(() => {
+    const getDevices = async () => {
+      // Si es un dispositivo móvil, no necesitamos buscar cámaras adicionales
+      if (isMobile) {
+        console.log('Dispositivo móvil detectado, omitiendo búsqueda de cámaras');
+        return;
+      }
+
+      try {
+        console.log('Buscando dispositivos de video...');
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices
+          .filter(device => device.kind === 'videoinput')
+          .map(device => ({
+            deviceId: device.deviceId,
+            label: device.label || `Cámara ${device.deviceId.slice(0, 5)}`,
+            type: 'camera' as const,
+            isActive: true
+          }));
+        
+        console.log('Dispositivos de video encontrados:', videoDevices);
+        setDevices(videoDevices);
+        
+        if (videoDevices.length > 0 && !selectedDevice) {
+          const backCamera = videoDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('trasera')
+          );
+          
+          const deviceToUse = backCamera || videoDevices[0];
+          console.log('Seleccionando cámara:', deviceToUse.label);
+          setSelectedDevice(deviceToUse.deviceId);
+          await registerDevice(deviceToUse);
+        }
+      } catch (error) {
+        console.error('Error al obtener dispositivos:', error);
+        toast({
+          title: "Error al acceder a la cámara",
+          description: "Por favor, asegúrate de dar permiso para usar la cámara.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    getDevices();
+  }, [isMobile]);
+
+  // Actualizar estado del dispositivo periódicamente
+  useEffect(() => {
+    const updateStatus = async () => {
+      const activeDeviceIds = [
+        selectedDevice,
+        isMobile ? 'mobile-' + navigator.userAgent : null,
+        'usb-scanner'
+      ].filter(Boolean);
+
+      try {
+        const { error } = await supabase
+          .from('connected_devices')
+          .update({ 
+            last_seen: new Date().toISOString(),
+            is_active: true
+          })
+          .in('device_id', activeDeviceIds);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error al actualizar estado de dispositivos:', error);
+      }
+    };
+
+    // Actualizar inmediatamente y luego cada minuto
+    updateStatus();
+    const interval = setInterval(updateStatus, 60000);
+
+    return () => clearInterval(interval);
+  }, [selectedDevice, isMobile]);
+
+  // Suscribirse a cambios en dispositivos conectados
+  useEffect(() => {
+    console.log('Configurando suscripción a cambios en dispositivos...');
+    const channel = supabase
+      .channel('connected-devices')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'connected_devices'
+        },
+        (payload) => {
+          console.log('Cambio detectado en dispositivos:', payload);
+          updateConnectedDevices();
+        }
+      )
+      .subscribe();
+
+    // Cargar dispositivos conectados inicialmente
+    updateConnectedDevices();
+
+    return () => {
+      console.log('Limpiando suscripción a cambios en dispositivos');
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Obtener lista de dispositivos conectados
+  const updateConnectedDevices = async () => {
+    try {
+      console.log('Actualizando lista de dispositivos conectados...');
+      const { data, error } = await supabase
+        .from('connected_devices')
+        .select('*')
+        .eq('is_active', true) as { data: ConnectedDevice[] | null, error: any };
+
+      if (error) throw error;
+
+      if (data) {
+        console.log('Dispositivos conectados:', data);
+        const devices = data.map(d => ({
+          deviceId: d.device_id,
+          label: d.device_label,
+          type: d.device_type as 'camera' | 'usb' | 'mobile',
+          isActive: d.is_active
+        }));
+        setConnectedDevices(devices);
+
+        // Si el dispositivo seleccionado no está en la lista, intentar seleccionar otro
+        if (selectedDevice && !devices.find(d => d.deviceId === selectedDevice)) {
+          const firstDevice = devices[0];
+          if (firstDevice) {
+            console.log('Cambiando a dispositivo disponible:', firstDevice.label);
+            setSelectedDevice(firstDevice.deviceId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener dispositivos conectados:', error);
+    }
+  };
 
   // Manejar entrada del lector USB
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
@@ -85,182 +268,6 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
     };
   }, [handleKeyPress]);
 
-  // Obtener dispositivos locales
-  useEffect(() => {
-    const getDevices = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices
-          .filter(device => device.kind === 'videoinput')
-          .map(device => ({
-            deviceId: device.deviceId,
-            label: device.label || `Cámara ${device.deviceId.slice(0, 5)}`,
-            type: 'camera' as const,
-            isActive: true
-          }));
-        
-        setDevices(videoDevices);
-        
-        // Si no hay dispositivo seleccionado y hay dispositivos disponibles
-        if (videoDevices.length > 0 && !selectedDevice) {
-          // Intentar seleccionar una cámara trasera primero
-          const backCamera = videoDevices.find(device => 
-            device.label.toLowerCase().includes('back') || 
-            device.label.toLowerCase().includes('trasera')
-          );
-          
-          const deviceToUse = backCamera || videoDevices[0];
-          setSelectedDevice(deviceToUse.deviceId);
-          await registerDevice(deviceToUse);
-        }
-      } catch (error) {
-        console.error('Error al obtener dispositivos:', error);
-        toast({
-          title: "Error al acceder a la cámara",
-          description: "Por favor, asegúrate de dar permiso para usar la cámara.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    getDevices();
-  }, []);
-
-  // Registrar dispositivo en la base de datos
-  const registerDevice = async (device: Device) => {
-    try {
-      // Primero verificamos si el dispositivo ya está registrado
-      const { data: existingDevice } = await supabase
-        .from('connected_devices')
-        .select('*')
-        .eq('device_id', device.deviceId)
-        .single();
-
-      const deviceData = {
-        device_id: device.deviceId,
-        device_label: device.label,
-        device_type: device.type,
-        last_seen: new Date().toISOString(),
-        is_active: true
-      };
-
-      let error;
-      if (existingDevice) {
-        // Actualizar dispositivo existente
-        const { error: updateError } = await supabase
-          .from('connected_devices')
-          .update(deviceData)
-          .eq('device_id', device.deviceId);
-        error = updateError;
-      } else {
-        // Insertar nuevo dispositivo
-        const { error: insertError } = await supabase
-          .from('connected_devices')
-          .insert(deviceData);
-        error = insertError;
-      }
-
-      if (error) throw error;
-      
-      toast({
-        title: "Dispositivo conectado",
-        description: `${device.label} está listo para escanear`,
-      });
-
-      // Actualizar la lista de dispositivos conectados
-      await updateConnectedDevices();
-    } catch (error) {
-      console.error('Error al registrar dispositivo:', error);
-      toast({
-        title: "Error al conectar dispositivo",
-        description: "No se pudo registrar el dispositivo en el sistema.",
-        variant: "destructive"
-      });
-      throw error; // Re-lanzar el error para manejarlo en el llamador
-    }
-  };
-
-  // Suscribirse a cambios en dispositivos conectados
-  useEffect(() => {
-    const channel = supabase
-      .channel('connected-devices')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'connected_devices'
-        },
-        () => {
-          updateConnectedDevices();
-        }
-      )
-      .subscribe();
-
-    // Actualizar estado de conexión cada minuto
-    const interval = setInterval(() => {
-      updateDeviceStatus();
-    }, 60000);
-
-    // Cargar dispositivos conectados inicialmente
-    updateConnectedDevices();
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Actualizar estado del dispositivo
-  const updateDeviceStatus = async () => {
-    try {
-      // Actualizar todos los dispositivos activos
-      const { error } = await supabase
-        .from('connected_devices')
-        .update({ 
-          last_seen: new Date().toISOString(),
-          is_active: true
-        })
-        .in('device_id', [selectedDevice, 'mobile-' + navigator.userAgent, 'usb-scanner'].filter(Boolean));
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error al actualizar estado del dispositivo:', error);
-    }
-  };
-
-  // Obtener lista de dispositivos conectados
-  const updateConnectedDevices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('connected_devices')
-        .select('*')
-        .eq('is_active', true) as { data: ConnectedDevice[] | null, error: any };
-
-      if (error) throw error;
-
-      if (data) {
-        const devices = data.map(d => ({
-          deviceId: d.device_id,
-          label: d.device_label,
-          type: d.device_type as 'camera' | 'usb' | 'mobile',
-          isActive: d.is_active
-        }));
-        setConnectedDevices(devices);
-
-        // Si el dispositivo seleccionado no está en la lista, intentar seleccionar otro
-        if (selectedDevice && !devices.find(d => d.deviceId === selectedDevice)) {
-          const firstDevice = devices[0];
-          if (firstDevice) {
-            setSelectedDevice(firstDevice.deviceId);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error al obtener dispositivos conectados:', error);
-    }
-  };
-
   const handleScan = (result: any) => {
     if (!isScanning || !result) return;
     onScan(result.text);
@@ -268,34 +275,36 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Label>Seleccionar cámara</Label>
-        <Select
-          value={selectedDevice}
-          onValueChange={async (deviceId) => {
-            setSelectedDevice(deviceId);
-            const device = devices.find(d => d.deviceId === deviceId);
-            if (device) {
-              try {
-                await registerDevice(device);
-              } catch (error) {
-                console.error('Error al cambiar dispositivo:', error);
+      {!isMobile && (
+        <div className="space-y-2">
+          <Label>Seleccionar cámara</Label>
+          <Select
+            value={selectedDevice}
+            onValueChange={async (deviceId) => {
+              setSelectedDevice(deviceId);
+              const device = devices.find(d => d.deviceId === deviceId);
+              if (device) {
+                try {
+                  await registerDevice(device);
+                } catch (error) {
+                  console.error('Error al cambiar dispositivo:', error);
+                }
               }
-            }
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona una cámara" />
-          </SelectTrigger>
-          <SelectContent>
-            {devices.map((device) => (
-              <SelectItem key={device.deviceId} value={device.deviceId}>
-                {device.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona una cámara" />
+            </SelectTrigger>
+            <SelectContent>
+              {devices.map((device) => (
+                <SelectItem key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label>Dispositivos conectados</Label>
@@ -311,12 +320,14 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Escáner USB</Label>
-        <p className="text-sm text-muted-foreground">
-          Conecta un lector de códigos USB para escanear automáticamente
-        </p>
-      </div>
+      {!isMobile && (
+        <div className="space-y-2">
+          <Label>Escáner USB</Label>
+          <p className="text-sm text-muted-foreground">
+            Conecta un lector de códigos USB para escanear automáticamente
+          </p>
+        </div>
+      )}
 
       <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
         <QrReader
@@ -324,7 +335,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
           constraints={{ 
             facingMode: 'environment',
             aspectRatio: 1,
-            deviceId: selectedDevice
+            deviceId: isMobile ? undefined : selectedDevice
           }}
           className="w-full h-full"
           videoId="qr-video"
