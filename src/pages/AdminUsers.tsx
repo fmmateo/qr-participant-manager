@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -46,11 +47,11 @@ const AdminUsers = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    checkSuperAdminAccess();
+    checkAccess();
     loadAdminUsers();
   }, []);
 
-  const checkSuperAdminAccess = async () => {
+  const checkAccess = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -83,11 +84,17 @@ const AdminUsers = () => {
 
   const loadAdminUsers = async () => {
     try {
-      const { data: adminUsersData } = await supabase
+      // Intentamos cargar todos los usuarios admin - la política RLS se encargará de filtrar según los permisos
+      const { data: adminUsersData, error: adminError } = await supabase
         .from('admin_users')
         .select('*');
 
-      if (!adminUsersData) return;
+      if (adminError) throw adminError;
+      
+      if (!adminUsersData) {
+        setAdminUsers([]);
+        return;
+      }
 
       const { data: authData } = await supabase.auth.admin.listUsers();
       const users = (authData?.users || []) as AuthUser[];
