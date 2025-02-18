@@ -367,6 +367,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       cleanup_inactive_devices: {
         Args: Record<PropertyKey, never>
         Returns: undefined
