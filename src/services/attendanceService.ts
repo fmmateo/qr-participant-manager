@@ -1,5 +1,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ParticipantRow = Database['public']['Tables']['participants']['Row'];
+type AttendanceRow = Database['public']['Tables']['attendance']['Row'];
 
 export interface QrData {
   name: string;
@@ -12,11 +16,8 @@ export const sendQrEmail = async (name: string, email: string, qrCode: string) =
   console.log('Enviando email con QR a:', { name, email, qrCode });
   
   try {
-    const { error } = await supabase.functions.invoke('send-qr-email', {
+    const { data, error } = await supabase.functions.invoke('send-qr-email', {
       body: { name, email, qrCode },
-      headers: {
-        'Content-Type': 'application/json',
-      }
     });
 
     if (error) {
@@ -24,7 +25,7 @@ export const sendQrEmail = async (name: string, email: string, qrCode: string) =
       throw error;
     }
 
-    return true;
+    return data;
   } catch (error) {
     console.error('Error en sendQrEmail:', error);
     throw error;
@@ -49,7 +50,7 @@ export const registerAttendance = async (
 
   const { data: participant, error: participantError } = await supabase
     .from('participants')
-    .select('id, name, status')
+    .select('*')
     .eq('status', 'active')
     .or(`email.eq.${searchQuery},qr_code.eq.${searchQuery}`)
     .single();
@@ -62,7 +63,7 @@ export const registerAttendance = async (
 
   const { data: existingAttendance, error: checkError } = await supabase
     .from('attendance')
-    .select('id, attendance_time')
+    .select('*')
     .eq('participant_id', participant.id)
     .eq('session_date', sessionDate)
     .eq('status', 'valid')
@@ -81,14 +82,16 @@ export const registerAttendance = async (
     };
   }
 
-  const { error: attendanceError } = await supabase
+  const { data: newAttendance, error: attendanceError } = await supabase
     .from('attendance')
-    .insert({
+    .insert([{
       participant_id: participant.id,
       session_date: sessionDate,
       attendance_time: new Date().toISOString(),
       status: 'valid'
-    });
+    }])
+    .select()
+    .single();
 
   if (attendanceError) {
     throw attendanceError;
@@ -103,7 +106,8 @@ export const registerAttendance = async (
   return {
     status: 'success',
     message: `Se registró la asistencia de ${participant.name} correctamente.`,
-    participant
+    participant,
+    attendance: newAttendance
   };
 };
 
