@@ -16,6 +16,7 @@ export type Database = {
           id: string
           participant_id: string
           session_date: string
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -24,6 +25,7 @@ export type Database = {
           id?: string
           participant_id: string
           session_date: string
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -32,9 +34,17 @@ export type Database = {
           id?: string
           participant_id?: string
           session_date?: string
+          status?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_attendance_summary"
+            referencedColumns: ["participant_id"]
+          },
           {
             foreignKeyName: "attendance_participant_id_fkey"
             columns: ["participant_id"]
@@ -140,6 +150,13 @@ export type Database = {
             foreignKeyName: "certificates_participant_id_fkey"
             columns: ["participant_id"]
             isOneToOne: false
+            referencedRelation: "mv_attendance_summary"
+            referencedColumns: ["participant_id"]
+          },
+          {
+            foreignKeyName: "certificates_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
             referencedRelation: "participants"
             referencedColumns: ["id"]
           },
@@ -194,6 +211,7 @@ export type Database = {
           qr_code: string | null
           qr_sent_at: string | null
           qr_sent_email_status: string | null
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -204,6 +222,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -214,6 +233,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -281,6 +301,13 @@ export type Database = {
             foreignKeyName: "registrations_participant_id_fkey"
             columns: ["participant_id"]
             isOneToOne: false
+            referencedRelation: "mv_attendance_summary"
+            referencedColumns: ["participant_id"]
+          },
+          {
+            foreignKeyName: "registrations_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
             referencedRelation: "participants"
             referencedColumns: ["id"]
           },
@@ -295,10 +322,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_attendance_summary: {
+        Row: {
+          attendance_count: number | null
+          email: string | null
+          last_attendance: string | null
+          name: string | null
+          participant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_inactive_devices: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_attendance_summary: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

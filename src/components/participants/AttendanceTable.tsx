@@ -19,25 +19,11 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-
-interface Participant {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-}
-
-interface Attendance {
-  id: string;
-  participant_id: string;
-  session_date: string;
-  attendance_time: string;
-  participant: Participant;
-}
+import type { Participant, AttendanceRecord } from "../attendance/types";
 
 interface AttendanceTableProps {
-  attendanceRecords: Attendance[];
-  onUpdate: (id: string, data: { session_date: string; attendance_time: string }) => Promise<void>;
+  attendanceRecords: AttendanceRecord[];
+  onUpdate: (id: string, data: { session_date: string; attendance_time: string; status: string }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -46,17 +32,19 @@ export const AttendanceTable = ({
   onUpdate,
   onDelete 
 }: AttendanceTableProps) => {
-  const [editingRecord, setEditingRecord] = useState<Attendance | null>(null);
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [formData, setFormData] = useState({
     session_date: "",
     attendance_time: "",
+    status: "valid"
   });
 
-  const handleEdit = (record: Attendance) => {
+  const handleEdit = (record: AttendanceRecord) => {
     setEditingRecord(record);
     setFormData({
       session_date: record.session_date.split('T')[0],
-      attendance_time: new Date(record.attendance_time).toTimeString().split(' ')[0]
+      attendance_time: new Date(record.attendance_time).toTimeString().split(' ')[0],
+      status: record.status || 'valid'
     });
   };
 
@@ -76,6 +64,7 @@ export const AttendanceTable = ({
           <TableHead>Email</TableHead>
           <TableHead>Fecha de Sesión</TableHead>
           <TableHead>Hora de Registro</TableHead>
+          <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -90,6 +79,7 @@ export const AttendanceTable = ({
             <TableCell>
               {new Date(record.attendance_time).toLocaleTimeString()}
             </TableCell>
+            <TableCell>{record.status || 'valid'}</TableCell>
             <TableCell className="text-right space-x-2">
               <Dialog>
                 <DialogTrigger asChild>
@@ -131,6 +121,20 @@ export const AttendanceTable = ({
                           setFormData((prev) => ({
                             ...prev,
                             attendance_time: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Estado</Label>
+                      <Input
+                        id="status"
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            status: e.target.value,
                           }))
                         }
                         required

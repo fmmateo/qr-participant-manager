@@ -16,3 +16,24 @@ export interface Device {
   type: 'camera' | 'usb' | 'mobile';
   isActive?: boolean;
 }
+
+export interface Participant {
+  id: string;
+  name: string;
+  email: string;
+  qr_code: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  participant_id: string;
+  session_date: string;
+  attendance_time: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  participant?: Participant;
+}
