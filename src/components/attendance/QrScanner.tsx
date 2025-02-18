@@ -63,14 +63,6 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   // Registrar dispositivo en la base de datos
   const registerDevice = async (device: Device) => {
     try {
-      // Verificar si ya existe una sesión
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.error('No hay sesión activa');
-        return;
-      }
-
       const deviceData = {
         device_id: device.deviceId,
         device_label: device.label,
