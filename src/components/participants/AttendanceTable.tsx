@@ -17,9 +17,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
-import type { Participant, AttendanceRecord } from "../attendance/types";
+import { Pencil, Trash2, Download } from "lucide-react";
+import { useState, useMemo } from "react";
+import type { AttendanceRecord } from "../attendance/types";
 
 interface AttendanceTableProps {
   attendanceRecords: AttendanceRecord[];
@@ -39,6 +39,21 @@ export const AttendanceTable = ({
     status: "valid"
   });
 
+  // Agrupar registros por fecha
+  const groupedRecords = useMemo(() => {
+    const groups = new Map<string, AttendanceRecord[]>();
+    
+    attendanceRecords.forEach(record => {
+      const date = new Date(record.session_date).toLocaleDateString();
+      if (!groups.has(date)) {
+        groups.set(date, []);
+      }
+      groups.get(date)?.push(record);
+    });
+
+    return new Map([...groups.entries()].sort().reverse());
+  }, [attendanceRecords]);
+
   const handleEdit = (record: AttendanceRecord) => {
     setEditingRecord(record);
     setFormData({
@@ -56,107 +71,153 @@ export const AttendanceTable = ({
     setEditingRecord(null);
   };
 
+  const exportToCSV = () => {
+    // Preparar los datos para exportar
+    const csvRows = [
+      // Encabezados
+      ['Fecha', 'Participante', 'Email', 'Hora de Registro', 'Estado'],
+    ];
+
+    // Agregar los datos
+    groupedRecords.forEach((records, date) => {
+      records.forEach(record => {
+        csvRows.push([
+          date,
+          record.participant?.name || '',
+          record.participant?.email || '',
+          new Date(record.attendance_time).toLocaleTimeString(),
+          record.status || 'valid'
+        ]);
+      });
+    });
+
+    // Convertir a CSV
+    const csvContent = csvRows.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Descargar archivo
+    link.setAttribute('href', url);
+    link.setAttribute('download', `asistencia_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Participante</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Fecha de Sesión</TableHead>
-          <TableHead>Hora de Registro</TableHead>
-          <TableHead>Estado</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {attendanceRecords.map((record) => (
-          <TableRow key={record.id}>
-            <TableCell>{record.participant?.name}</TableCell>
-            <TableCell>{record.participant?.email}</TableCell>
-            <TableCell>
-              {new Date(record.session_date).toLocaleDateString()}
-            </TableCell>
-            <TableCell>
-              {new Date(record.attendance_time).toLocaleTimeString()}
-            </TableCell>
-            <TableCell>{record.status || 'valid'}</TableCell>
-            <TableCell className="text-right space-x-2">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(record)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Editar Registro de Asistencia</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleUpdate} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="session_date">Fecha de Sesión</Label>
-                      <Input
-                        id="session_date"
-                        type="date"
-                        value={formData.session_date}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            session_date: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="attendance_time">Hora de Registro</Label>
-                      <Input
-                        id="attendance_time"
-                        type="time"
-                        value={formData.attendance_time}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            attendance_time: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Estado</Label>
-                      <Input
-                        id="status"
-                        value={formData.status}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            status: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <Button type="submit" className="w-full">
-                      Actualizar
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={exportToCSV} className="mb-4">
+          <Download className="mr-2 h-4 w-4" />
+          Exportar a CSV
+        </Button>
+      </div>
+
+      {Array.from(groupedRecords.entries()).map(([date, records]) => (
+        <div key={date} className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">
+            {date} ({records.length} registros)
+          </h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Participante</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Hora de Registro</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {records.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell>{record.participant?.name}</TableCell>
+                  <TableCell>{record.participant?.email}</TableCell>
+                  <TableCell>
+                    {new Date(record.attendance_time).toLocaleTimeString()}
+                  </TableCell>
+                  <TableCell>{record.status || 'valid'}</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(record)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Editar Registro de Asistencia</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleUpdate} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="session_date">Fecha de Sesión</Label>
+                            <Input
+                              id="session_date"
+                              type="date"
+                              value={formData.session_date}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  session_date: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="attendance_time">Hora de Registro</Label>
+                            <Input
+                              id="attendance_time"
+                              type="time"
+                              value={formData.attendance_time}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  attendance_time: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="status">Estado</Label>
+                            <Input
+                              id="status"
+                              value={formData.status}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  status: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                          </div>
+                          <Button type="submit" className="w-full">
+                            Actualizar
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(record.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(record.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ))}
+    </div>
   );
 };
