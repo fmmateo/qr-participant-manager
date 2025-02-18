@@ -16,7 +16,7 @@ export const sendQrEmail = async (name: string, email: string, qrCode: string) =
   console.log('Enviando email con QR a:', { name, email, qrCode });
   
   try {
-    const { data, error } = await supabase.functions.invoke('send-qr-email', {
+    const { data, error } = await supabase.functions.invoke<{ success: boolean; message: string }>('send-qr-email', {
       body: { name, email, qrCode }
     });
 
@@ -25,6 +25,7 @@ export const sendQrEmail = async (name: string, email: string, qrCode: string) =
       throw error;
     }
 
+    console.log('Respuesta del servidor:', data);
     return data;
   } catch (error) {
     console.error('Error en sendQrEmail:', error);

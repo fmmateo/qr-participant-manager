@@ -8,6 +8,12 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+interface EmailRequest {
+  name: string;
+  email: string;
+  qrCode: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -23,17 +29,20 @@ serve(async (req) => {
       throw new Error("RESEND_API_KEY is not configured");
     }
 
+    console.log("Initializing Resend with API key");
     const resend = new Resend(resendApiKey);
 
     if (req.method !== "POST") {
       throw new Error(`HTTP method ${req.method} not allowed`);
     }
 
-    const { name, email, qrCode } = await req.json();
-    console.log("Processing request for:", { name, email, qrCode });
+    const requestData = await req.json();
+    console.log("Received request data:", requestData);
+
+    const { name, email, qrCode } = requestData as EmailRequest;
 
     if (!name || !email || !qrCode) {
-      throw new Error("Missing required fields: name, email, or qrCode");
+      throw new Error(`Missing required fields. Received: ${JSON.stringify({ name, email, qrCode })}`);
     }
 
     // Datos para el QR
@@ -46,14 +55,16 @@ serve(async (req) => {
 
     // Construir el contenido del QR
     const qrContent = JSON.stringify(participantData);
+    console.log("QR content:", qrContent);
 
     // Generar URL del QR usando un servicio gratuito
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
+    console.log("Generated QR URL:", qrCodeUrl);
 
     // Enviar email
-    console.log("Sending email to:", email);
+    console.log("Attempting to send email to:", email);
     const { data: emailResponse, error: emailError } = await resend.emails.send({
-      from: "Asistencias <noreply@resend.dev>",
+      from: "Asistencias <onboarding@resend.dev>",
       to: [email],
       subject: "Tu código QR de asistencia",
       html: `
