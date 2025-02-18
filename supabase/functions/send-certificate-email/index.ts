@@ -72,16 +72,28 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    // Logo simplificado - Un círculo verde como logo temporal
-    const centerX = width / 2;
-    const centerY = height - 120;
-    const radius = 60;
+    // Logo como texto estilizado
+    const logoText = "CONACOOP";
+    const logoSize = 48;
+    const logoWidth = font.widthOfTextAtSize(logoText, logoSize);
+    
+    // Dibuja un rectángulo verde claro detrás del texto del logo
+    page.drawRectangle({
+      x: (width - logoWidth - 40) / 2,
+      y: height - 160,
+      width: logoWidth + 40,
+      height: 80,
+      color: rgb(0.8, 0.9, 0.8),
+      borderColor: rgb(0.125, 0.502, 0.125),
+      borderWidth: 2,
+    });
 
-    // Dibuja un círculo verde como logo temporal
-    page.drawCircle({
-      x: centerX,
-      y: centerY,
-      radius: radius,
+    // Dibuja el texto del logo
+    page.drawText(logoText, {
+      x: (width - logoWidth) / 2,
+      y: height - 120,
+      size: logoSize,
+      font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
@@ -92,16 +104,6 @@ const handler = async (req: Request): Promise<Response> => {
       x: (width - textWidth) / 2,
       y: height - 220,
       size: 28,
-      font,
-      color: rgb(0.125, 0.502, 0.125),
-    });
-
-    // Subtítulo
-    const subtitleWidth = font.widthOfTextAtSize('CONACOOP', 24);
-    page.drawText('CONACOOP', {
-      x: (width - subtitleWidth) / 2,
-      y: height - 260,
-      size: 24,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
@@ -148,13 +150,13 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información del certificado en la parte inferior derecha
-    const rightMargin = 80;
+    // Información del certificado en la parte inferior
+    const bottomMargin = 80;
 
     // Número de certificado
     page.drawText(`Certificado N°: ${certificateNumber}`, {
-      x: width - rightMargin - font.widthOfTextAtSize(`Certificado N°: ${certificateNumber}`, 12),
-      y: 100,
+      x: width - 300,
+      y: bottomMargin + 20,
       size: 12,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
@@ -162,10 +164,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Fecha de emisión
     page.drawText(`Fecha de emisión: ${issueDate}`, {
-      x: width - rightMargin - font.widthOfTextAtSize(`Fecha de emisión: ${issueDate}`, 12),
-      y: 80,
+      x: width - 300,
+      y: bottomMargin,
       size: 12,
       font: regularFont,
+      color: rgb(0.125, 0.502, 0.125),
+    });
+
+    // Firma y sello (representados como texto)
+    page.drawText("FIRMA DIGITAL", {
+      x: 200,
+      y: bottomMargin + 60,
+      size: 14,
+      font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
