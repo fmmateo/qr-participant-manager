@@ -5,13 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft } from "lucide-react";
-import type { AdminUser } from "@/types/database";
+import { ArrowLeft, UserCog, Shield } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { AdminUser, AdminUserWithEmail } from "@/types/database";
 import type { User } from '@supabase/supabase-js';
-
-interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
-  email: string;
-}
 
 const AdminUsers = () => {
   const navigate = useNavigate();

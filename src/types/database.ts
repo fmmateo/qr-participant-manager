@@ -21,7 +21,6 @@ declare global {
           Insert: Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>;
           Update: Partial<Omit<AdminUser, 'id' | 'created_at' | 'updated_at'>>;
         };
-        // ... otras tablas existentes
       };
     };
   };
