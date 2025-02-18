@@ -55,103 +55,41 @@ serve(async (req) => {
       throw new Error("APIFlash access key no está configurada");
     }
 
-    const certificateHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          body {
-            margin: 0;
-            padding: 40px;
-            background: linear-gradient(135deg, #004d1a 0%, #006622 100%);
-            font-family: Arial, sans-serif;
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
-          .certificate {
-            border: 4px solid #FFD700;
-            padding: 40px;
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: rgba(0, 77, 26, 0.9);
-          }
-          .title {
-            color: #FFD700;
-            font-size: 32px;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-          }
-          .subtitle {
-            color: #FFD700;
-            font-size: 24px;
-            margin-bottom: 40px;
-            letter-spacing: 1px;
-          }
-          .name {
-            color: #FFD700;
-            font-size: 48px;
-            margin: 30px 0;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-          }
-          .details {
-            margin: 20px 0;
-            font-size: 18px;
-            line-height: 1.5;
-          }
-          .program {
-            color: #FFD700;
-            font-size: 28px;
-            margin: 20px 0;
-            font-style: italic;
-          }
-          .footer {
-            font-size: 16px;
-            margin-top: 40px;
-            color: #FFD700;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-          <div class="title">CONSEJO NACIONAL DE COOPERATIVAS</div>
-          <div class="subtitle">CONAPCOOP</div>
-          
-          <div class="details">
-            Otorga el presente certificado de ${certificateTypeText} a:
-          </div>
-          
-          <div class="name">${name}</div>
-          
-          <div class="details">
-            Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:
-          </div>
-          
-          <div class="program">"${programName}"</div>
-          
-          <div class="footer">
-            Certificado N°: ${certificateNumber}<br>
-            Fecha de emisión: ${issueDate}
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Crear data URL directamente con el HTML
-    const htmlDataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(certificateHtml)}`;
+    const certificateHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin: 0; padding: 40px; background: linear-gradient(135deg, #004d1a 0%, #006622 100%); font-family: Arial, sans-serif; color: white; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .certificate { border: 4px solid #FFD700; padding: 40px; max-width: 800px; margin: 0 auto; background-color: rgba(0, 77, 26, 0.9); }
+    .title { color: #FFD700; font-size: 32px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+    .subtitle { color: #FFD700; font-size: 24px; margin-bottom: 40px; letter-spacing: 1px; }
+    .name { color: #FFD700; font-size: 48px; margin: 30px 0; text-transform: uppercase; letter-spacing: 3px; }
+    .details { margin: 20px 0; font-size: 18px; line-height: 1.5; }
+    .program { color: #FFD700; font-size: 28px; margin: 20px 0; font-style: italic; }
+    .footer { font-size: 16px; margin-top: 40px; color: #FFD700; }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <div class="title">CONSEJO NACIONAL DE COOPERATIVAS</div>
+    <div class="subtitle">CONAPCOOP</div>
+    <div class="details">Otorga el presente certificado de ${certificateTypeText} a:</div>
+    <div class="name">${name}</div>
+    <div class="details">Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:</div>
+    <div class="program">"${programName}"</div>
+    <div class="footer">
+      Certificado N°: ${certificateNumber}<br>
+      Fecha de emisión: ${issueDate}
+    </div>
+  </div>
+</body>
+</html>`;
 
     // Construir la URL de APIFlash
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
-    apiFlashUrl.searchParams.set('url', htmlDataUrl);
+    apiFlashUrl.searchParams.set('html', certificateHtml);
     apiFlashUrl.searchParams.set('format', 'png');
     apiFlashUrl.searchParams.set('width', '1000');
     apiFlashUrl.searchParams.set('height', '1414');
