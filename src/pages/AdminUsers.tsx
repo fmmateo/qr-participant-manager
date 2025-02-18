@@ -27,6 +27,11 @@ import { ArrowLeft, Plus, Shield, UserCog } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import type { AdminUser } from "@/types/database";
 
+interface AuthUser {
+  id: string;
+  email?: string;
+}
+
 interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
   email: string;
 }
@@ -86,12 +91,13 @@ const AdminUsers = () => {
       if (!adminUsersData) return;
 
       const { data: authData } = await supabase.auth.admin.listUsers();
+      const authUsers = authData?.users as AuthUser[] | undefined;
 
-      if (!authData?.users) return;
+      if (!authUsers) return;
 
       const combinedData = adminUsersData.map(admin => ({
         id: admin.id,
-        email: authData.users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
+        email: authUsers.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
         is_super_admin: admin.is_super_admin,
         is_active: admin.is_active,
         created_at: admin.created_at,
