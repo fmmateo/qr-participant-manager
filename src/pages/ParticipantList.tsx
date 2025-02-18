@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,27 +13,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen } from "lucide-react";
 import { ParticipantTable } from "@/components/participants/ParticipantTable";
 import { AttendanceTable } from "@/components/participants/AttendanceTable";
-
-interface Participant {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-}
-
-interface Attendance {
-  id: string;
-  participant_id: string;
-  session_date: string;
-  attendance_time: string;
-  participant: Participant;
-}
+import type { Participant, AttendanceRecord } from "@/components/attendance/types";
 
 const ParticipantList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const checkAuth = async () => {
@@ -72,6 +57,9 @@ const ParticipantList = () => {
           participant_id,
           session_date,
           attendance_time,
+          status,
+          created_at,
+          updated_at,
           participant:participants (
             id,
             name,
@@ -100,7 +88,6 @@ const ParticipantList = () => {
     loadParticipants();
     loadAttendance();
 
-    // Suscribirse a cambios en tiempo real para participantes
     const participantsChannel = supabase
       .channel('participants-changes')
       .on(
@@ -116,7 +103,6 @@ const ParticipantList = () => {
       )
       .subscribe();
 
-    // Suscribirse a cambios en tiempo real para asistencias
     const attendanceChannel = supabase
       .channel('attendance-changes')
       .on(
@@ -170,7 +156,6 @@ const ParticipantList = () => {
     if (!confirm("¿Estás seguro de eliminar este participante? Esto también eliminará todos sus registros asociados.")) return;
 
     try {
-      // Primero eliminamos los registros asociados
       const { error: registrationsError } = await supabase
         .from("registrations")
         .delete()
@@ -178,7 +163,6 @@ const ParticipantList = () => {
 
       if (registrationsError) throw registrationsError;
 
-      // Luego eliminamos el participante
       const { error: participantError } = await supabase
         .from("participants")
         .delete()
@@ -200,7 +184,7 @@ const ParticipantList = () => {
     }
   };
 
-  const handleUpdateAttendance = async (id: string, data: { session_date: string; attendance_time: string }) => {
+  const handleUpdateAttendance = async (id: string, data: { session_date: string; attendance_time: string; status: string }) => {
     try {
       const attendance_time = new Date(`${data.session_date}T${data.attendance_time}`).toISOString();
       
@@ -208,7 +192,8 @@ const ParticipantList = () => {
         .from("attendance")
         .update({
           session_date: data.session_date,
-          attendance_time
+          attendance_time,
+          status: data.status
         })
         .eq("id", id);
 
