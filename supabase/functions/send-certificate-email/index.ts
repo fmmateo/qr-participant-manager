@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -76,14 +75,25 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log("Cargando logo...");
       const logoUrl = "https://raw.githubusercontent.com/conacoop/assets/main/logo.png";
-      const logoResponse = await fetch(logoUrl);
+      const logoResponse = await fetch(logoUrl, {
+        headers: {
+          'Accept': 'image/png',
+          'User-Agent': 'Mozilla/5.0 (compatible; Certificados/1.0;)'
+        }
+      });
       
       if (!logoResponse.ok) {
+        console.error(`Error al cargar el logo. Status: ${logoResponse.status}`);
         throw new Error(`Error al cargar el logo: ${logoResponse.status}`);
       }
       
+      console.log("Logo descargado, convirtiendo a ArrayBuffer...");
       const logoData = await logoResponse.arrayBuffer();
+      console.log("Logo convertido a ArrayBuffer, longitud:", logoData.byteLength);
+      
+      console.log("Embebiendo logo en PDF...");
       const logoImage = await pdfDoc.embedPng(logoData);
+      console.log("Logo embebido exitosamente");
       
       // Calcular dimensiones del logo para mantener proporción y centrarlo
       const logoMaxHeight = 120; // Altura máxima del logo
@@ -97,9 +107,10 @@ const handler = async (req: Request): Promise<Response> => {
         width: scaledWidth,
         height: logoMaxHeight,
       });
-      console.log("Logo agregado exitosamente");
+      console.log("Logo agregado exitosamente al PDF");
     } catch (logoError) {
-      console.error("Error al cargar el logo:", logoError);
+      console.error("Error detallado al cargar el logo:", logoError);
+      console.error("Stack trace:", logoError.stack);
     }
 
     // Título principal
