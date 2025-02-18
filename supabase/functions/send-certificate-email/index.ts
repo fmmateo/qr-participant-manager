@@ -49,7 +49,8 @@ serve(async (req) => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    const apiFlashKey = Deno.env.get("APIFLASH_ACCESS_KEY");
+    // Usamos el nuevo API key de APIFlash
+    const apiFlashKey = "148752fd75224b878e980dbef5fa943d";
     
     if (!apiFlashKey) {
       throw new Error("APIFlash access key no está configurada");
@@ -114,7 +115,7 @@ serve(async (req) => {
     const htmlUrl = `https://paste.ee/r/${pasteData.id}`;
     console.log("URL temporal creada:", htmlUrl);
 
-    // Construir la URL de APIFlash
+    // Construir la URL de APIFlash con el nuevo API key
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
     apiFlashUrl.searchParams.set('url', htmlUrl);
@@ -124,8 +125,10 @@ serve(async (req) => {
     apiFlashUrl.searchParams.set('quality', '100');
     apiFlashUrl.searchParams.set('full_page', 'true');
     apiFlashUrl.searchParams.set('fresh', 'true');
+    apiFlashUrl.searchParams.set('wait_until', 'networkidle0');
 
     console.log("Generando imagen del certificado con APIFlash...");
+    console.log("URL de APIFlash:", apiFlashUrl.toString());
     
     // Obtener la imagen del certificado
     const certificateResponse = await fetch(apiFlashUrl.toString());
