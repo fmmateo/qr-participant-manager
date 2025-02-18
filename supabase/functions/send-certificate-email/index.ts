@@ -75,24 +75,34 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    console.log("Agregando contenido al PDF...");
-
-    // Cargar y agregar el logo
-    const logoUrl = "https://xmnpfnrndmwxnzkmcqkv.supabase.co/storage/v1/object/public/public/logo-conapcoop.png";
-    const logoResponse = await fetch(logoUrl);
-    const logoData = await logoResponse.arrayBuffer();
-    const logoImage = await pdfDoc.embedPng(logoData);
-    
-    // Calcular dimensiones del logo para mantener proporción y centrarlo
-    const logoMaxWidth = 150;
-    const logoDims = logoImage.scale(logoMaxWidth / logoImage.width);
-    
-    page.drawImage(logoImage, {
-      x: (width - logoDims.width) / 2,
-      y: height - 120 - logoDims.height,
-      width: logoDims.width,
-      height: logoDims.height,
-    });
+    try {
+      // Cargar y agregar el logo
+      console.log("Intentando cargar el logo...");
+      const logoUrl = "https://raw.githubusercontent.com/conapcoop/assets/main/logo-conapcoop.png";
+      const logoResponse = await fetch(logoUrl);
+      
+      if (!logoResponse.ok) {
+        throw new Error(`Error al cargar el logo: ${logoResponse.status}`);
+      }
+      
+      const logoData = await logoResponse.arrayBuffer();
+      const logoImage = await pdfDoc.embedPng(logoData);
+      
+      // Calcular dimensiones del logo para mantener proporción y centrarlo
+      const logoMaxWidth = 150;
+      const logoDims = logoImage.scale(logoMaxWidth / logoImage.width);
+      
+      page.drawImage(logoImage, {
+        x: (width - logoDims.width) / 2,
+        y: height - 120 - logoDims.height,
+        width: logoDims.width,
+        height: logoDims.height,
+      });
+      console.log("Logo cargado y agregado exitosamente");
+    } catch (logoError) {
+      console.error("Error al cargar el logo:", logoError);
+      // Continuar sin el logo si hay error
+    }
 
     // Textos centrados
     const textWidth = font.widthOfTextAtSize('CONSEJO NACIONAL DE COOPERATIVAS', 28);
@@ -181,7 +191,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Cliente Resend inicializado");
 
     // Convertir el PDF a base64
-    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
     console.log("PDF convertido a base64");
 
     const emailResponse = await resend.emails.send({
