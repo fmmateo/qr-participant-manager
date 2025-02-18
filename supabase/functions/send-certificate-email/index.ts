@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -72,28 +71,46 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    // Logo como texto estilizado
-    const logoText = "CONACOOP";
-    const logoSize = 48;
-    const logoWidth = font.widthOfTextAtSize(logoText, logoSize);
-    
-    // Dibuja un rectángulo verde claro detrás del texto del logo
-    page.drawRectangle({
-      x: (width - logoWidth - 40) / 2,
-      y: height - 160,
-      width: logoWidth + 40,
-      height: 80,
-      color: rgb(0.8, 0.9, 0.8),
-      borderColor: rgb(0.125, 0.502, 0.125),
-      borderWidth: 2,
+    // Logo como círculo verde con flechas
+    const centerX = width / 2;
+    const centerY = height - 120;
+    const radius = 50;
+
+    // Círculo exterior plateado
+    page.drawCircle({
+      x: centerX,
+      y: centerY,
+      radius: radius + 5,
+      color: rgb(0.8, 0.8, 0.8),
     });
 
-    // Dibuja el texto del logo
-    page.drawText(logoText, {
-      x: (width - logoWidth) / 2,
-      y: height - 120,
-      size: logoSize,
-      font,
+    // Círculo interior amarillo
+    page.drawCircle({
+      x: centerX,
+      y: centerY,
+      radius: radius,
+      color: rgb(1, 0.9, 0.2),
+    });
+
+    // Flechas verdes (simplificadas como rectángulos)
+    const arrowWidth = 20;
+    const arrowHeight = 40;
+    
+    // Flecha izquierda
+    page.drawRectangle({
+      x: centerX - 15,
+      y: centerY - 10,
+      width: arrowWidth,
+      height: arrowHeight,
+      color: rgb(0.125, 0.502, 0.125),
+    });
+
+    // Flecha derecha
+    page.drawRectangle({
+      x: centerX + 15,
+      y: centerY - 10,
+      width: arrowWidth,
+      height: arrowHeight,
       color: rgb(0.125, 0.502, 0.125),
     });
 
@@ -104,6 +121,16 @@ const handler = async (req: Request): Promise<Response> => {
       x: (width - textWidth) / 2,
       y: height - 220,
       size: 28,
+      font,
+      color: rgb(0.125, 0.502, 0.125),
+    });
+
+    // Subtítulo
+    const subtitleWidth = font.widthOfTextAtSize('CONACOOP', 24);
+    page.drawText('CONACOOP', {
+      x: (width - subtitleWidth) / 2,
+      y: height - 260,
+      size: 24,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
