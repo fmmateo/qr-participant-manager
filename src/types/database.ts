@@ -8,6 +8,10 @@ export interface AdminUser {
   updated_at: string;
 }
 
+interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
+  email: string;
+}
+
 declare global {
   type Database = {
     public: {
@@ -22,3 +26,5 @@ declare global {
     };
   };
 }
+
+export type { AdminUserWithEmail };

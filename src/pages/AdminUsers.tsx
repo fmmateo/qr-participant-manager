@@ -110,13 +110,61 @@ const AdminUsers = () => {
                 Administra los usuarios con acceso al panel
               </p>
             </div>
-            <CreateAdminDialog onAdminCreated={loadAdminUsers} />
           </div>
 
-          <AdminUsersTable 
-            adminUsers={adminUsers}
-            onAdminUpdated={loadAdminUsers}
-          />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Correo electrónico</TableHead>
+                <TableHead>Super Admin</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {adminUsers.map((admin) => (
+                <TableRow key={admin.id}>
+                  <TableCell>{admin.email}</TableCell>
+                  <TableCell>
+                    {admin.is_super_admin ? (
+                      <Shield className="h-4 w-4 text-primary" />
+                    ) : (
+                      <UserCog className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </TableCell>
+                  <TableCell>{admin.is_active ? 'Activo' : 'Inactivo'}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={admin.is_active}
+                      onCheckedChange={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('admin_users')
+                            .update({ is_active: !admin.is_active })
+                            .eq('id', admin.id);
+
+                          if (error) throw error;
+
+                          loadAdminUsers();
+                          toast({
+                            title: "¡Éxito!",
+                            description: `Estado actualizado correctamente`,
+                          });
+                        } catch (error) {
+                          console.error('Error:', error);
+                          toast({
+                            title: "Error",
+                            description: "Error al actualizar el estado",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       </div>
     </div>
