@@ -43,7 +43,7 @@ export type Database = {
           id: string
           participant_id: string
           session_date: string
-          status: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -52,7 +52,7 @@ export type Database = {
           id?: string
           participant_id: string
           session_date: string
-          status?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -61,7 +61,7 @@ export type Database = {
           id?: string
           participant_id?: string
           session_date?: string
-          status?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -238,7 +238,7 @@ export type Database = {
           qr_code: string | null
           qr_sent_at: string | null
           qr_sent_email_status: string | null
-          status: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -249,7 +249,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
-          status?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -260,7 +260,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
-          status?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
