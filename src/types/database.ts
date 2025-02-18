@@ -8,7 +8,7 @@ export interface AdminUser {
   updated_at: string;
 }
 
-interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
+export interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
   email: string;
 }
 
@@ -25,5 +25,3 @@ declare global {
     };
   };
 }
-
-export type { AdminUserWithEmail };

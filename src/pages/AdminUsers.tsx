@@ -23,7 +23,6 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<AdminUserWithEmail[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const loadAdminUsers = async () => {
     try {
@@ -50,7 +49,7 @@ const AdminUsers = () => {
       const uniqueUserIds = [...new Set(userIds)];
       
       const usersPromises = uniqueUserIds.map(async (userId) => {
-        const { data: { user }, error } = await supabase.auth.admin.getUserById(userId as string);
+        const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
         if (error) {
           console.error('Error fetching user:', error);
           return null;
@@ -60,7 +59,7 @@ const AdminUsers = () => {
 
       const users = (await Promise.all(usersPromises)).filter((user): user is User => user !== null);
 
-      const combinedData = adminUsersData.map(admin => ({
+      const combinedData: AdminUserWithEmail[] = adminUsersData.map(admin => ({
         id: admin.id,
         email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
         is_super_admin: admin.is_super_admin,
