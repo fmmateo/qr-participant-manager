@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
+import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,111 +50,99 @@ serve(async (req) => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    const certificateHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    @page {
-      margin: 0;
-      size: A4 portrait;
-    }
-    body { 
-      margin: 0; 
-      padding: 40px; 
-      background: linear-gradient(135deg, #004d1a 0%, #006622 100%); 
-      font-family: Arial, sans-serif; 
-      color: white; 
-      min-height: 100vh; 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center; 
-      text-align: center; 
-    }
-    .certificate { 
-      border: 4px solid #FFD700; 
-      padding: 40px; 
-      max-width: 800px; 
-      margin: 0 auto; 
-      background-color: rgba(0, 77, 26, 0.9); 
-    }
-    .title { 
-      color: #FFD700; 
-      font-size: 32px; 
-      margin-bottom: 20px; 
-      text-transform: uppercase; 
-      letter-spacing: 2px; 
-    }
-    .subtitle { 
-      color: #FFD700; 
-      font-size: 24px; 
-      margin-bottom: 40px; 
-      letter-spacing: 1px; 
-    }
-    .name { 
-      color: #FFD700; 
-      font-size: 48px; 
-      margin: 30px 0; 
-      text-transform: uppercase; 
-      letter-spacing: 3px; 
-    }
-    .details { 
-      margin: 20px 0; 
-      font-size: 18px; 
-      line-height: 1.5; 
-    }
-    .program { 
-      color: #FFD700; 
-      font-size: 28px; 
-      margin: 20px 0; 
-      font-style: italic; 
-    }
-    .footer { 
-      font-size: 16px; 
-      margin-top: 40px; 
-      color: #FFD700; 
-    }
-  </style>
-</head>
-<body>
-  <div class="certificate">
-    <div class="title">CONSEJO NACIONAL DE COOPERATIVAS</div>
-    <div class="subtitle">CONAPCOOP</div>
-    <div class="details">Otorga el presente certificado de ${certificateTypeText} a:</div>
-    <div class="name">${name}</div>
-    <div class="details">Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:</div>
-    <div class="program">"${programName}"</div>
-    <div class="footer">
-      Certificado N°: ${certificateNumber}<br>
-      Fecha de emisión: ${issueDate}
-    </div>
-  </div>
-</body>
-</html>`;
-
     console.log("Generando PDF del certificado...");
 
-    // Inicializar Puppeteer
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
+    // Crear un nuevo documento PDF
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([842, 595]); // A4 en puntos (landscape)
     
-    // Establecer el contenido HTML
-    await page.setContent(certificateHtml, {
-      waitUntil: 'networkidle0'
-    });
-
-    // Generar PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' }
-    });
-
-    await browser.close();
+    // Cargar la fuente
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     
+    // Configurar el tamaño y la posición del texto
+    const { width, height } = page.getSize();
+    
+    // Color dorado para el texto principal
+    const goldColor = rgb(0.855, 0.647, 0.125);
+    const whiteColor = rgb(1, 1, 1);
+    
+    // Título
+    page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
+      x: 50,
+      y: height - 50,
+      size: 24,
+      font,
+      color: goldColor,
+      maxWidth: width - 100,
+      lineHeight: 30,
+    });
+    
+    // Subtítulo
+    page.drawText('CONAPCOOP', {
+      x: 50,
+      y: height - 100,
+      size: 20,
+      font,
+      color: goldColor,
+    });
+    
+    // Texto del certificado
+    page.drawText(`Otorga el presente certificado de ${certificateTypeText} a:`, {
+      x: 50,
+      y: height - 180,
+      size: 16,
+      font: regularFont,
+      color: whiteColor,
+    });
+    
+    // Nombre del participante
+    page.drawText(name.toUpperCase(), {
+      x: 50,
+      y: height - 250,
+      size: 32,
+      font,
+      color: goldColor,
+    });
+    
+    // Detalles del programa
+    page.drawText(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, {
+      x: 50,
+      y: height - 300,
+      size: 16,
+      font: regularFont,
+      color: whiteColor,
+    });
+    
+    page.drawText(`"${programName}"`, {
+      x: 50,
+      y: height - 350,
+      size: 20,
+      font,
+      color: goldColor,
+      maxWidth: width - 100,
+      lineHeight: 30,
+    });
+    
+    // Información del certificado
+    page.drawText(`Certificado N°: ${certificateNumber}`, {
+      x: 50,
+      y: 100,
+      size: 12,
+      font: regularFont,
+      color: goldColor,
+    });
+    
+    page.drawText(`Fecha de emisión: ${issueDate}`, {
+      x: 50,
+      y: 80,
+      size: 12,
+      font: regularFont,
+      color: goldColor,
+    });
+    
+    // Generar el PDF
+    const pdfBytes = await pdfDoc.save();
     console.log("PDF del certificado generado exitosamente");
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -183,7 +171,7 @@ serve(async (req) => {
       attachments: [
         {
           filename: `certificado-${certificateNumber}.pdf`,
-          content: pdfBuffer
+          content: pdfBytes
         },
       ],
     });
