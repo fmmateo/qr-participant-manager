@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AdminUser, AdminUserWithEmail } from "@/types/database";
+import type { AdminUserWithEmail } from "@/types/database";
 import type { User } from '@supabase/supabase-js';
 
 const AdminUsers = () => {
@@ -61,11 +61,11 @@ const AdminUsers = () => {
 
       const combinedData: AdminUserWithEmail[] = adminUsersData.map(admin => ({
         id: admin.id,
-        email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
         is_super_admin: admin.is_super_admin,
         is_active: admin.is_active,
         created_at: admin.created_at,
-        updated_at: admin.updated_at
+        updated_at: admin.updated_at,
+        email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado'
       }));
 
       setAdminUsers(combinedData);
