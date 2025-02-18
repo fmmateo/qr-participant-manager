@@ -37,20 +37,17 @@ const Registration = () => {
     const checkAccess = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Si hay un token de registro, permitir acceso
       if (registrationToken) {
         setIsValidAccess(true);
         return;
       }
 
-      // Si no hay token, verificar si es administrador
       if (session) {
         setIsAdmin(true);
         setIsValidAccess(true);
         return;
       }
 
-      // Si no hay token ni es admin, denegar acceso
       toast({
         title: "Acceso Denegado",
         description: "No tienes permiso para acceder a esta página",
@@ -82,11 +79,15 @@ const Registration = () => {
     setIsSubmitting(true);
 
     try {
+      const qrCode = crypto.randomUUID();
+      
       const { data: participant, error: participantError } = await supabase
         .from('participants')
         .upsert({
           name: formData.name,
           email: formData.email,
+          qr_code: qrCode,
+          status: 'active'
         }, {
           onConflict: 'email'
         })
@@ -105,6 +106,34 @@ const Registration = () => {
 
       if (registrationError) throw registrationError;
 
+      // Enviamos el email con el código QR
+      const { error: qrEmailError } = await supabase.functions.invoke('send-qr-email', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          qrCode: qrCode,
+        },
+      });
+
+      if (qrEmailError) {
+        console.error('Error sending QR email:', qrEmailError);
+        throw qrEmailError;
+      }
+
+      // Actualizamos el estado del envío del QR
+      const { error: updateError } = await supabase
+        .from('participants')
+        .update({
+          qr_sent_at: new Date().toISOString(),
+          qr_sent_email_status: 'SENT'
+        })
+        .eq('id', participant.id);
+
+      if (updateError) {
+        console.error('Error updating QR sent status:', updateError);
+      }
+
+      // Enviamos el email de confirmación de registro
       const { error: emailError } = await supabase.functions.invoke('send-registration-email', {
         body: {
           name: formData.name,
@@ -114,12 +143,12 @@ const Registration = () => {
       });
 
       if (emailError) {
-        console.error('Error sending email:', emailError);
+        console.error('Error sending registration email:', emailError);
       }
 
       toast({
         title: "¡Inscripción exitosa!",
-        description: "Te hemos enviado un correo de confirmación.",
+        description: "Te hemos enviado un correo de confirmación y tu código QR personal.",
       });
 
       setFormData({
