@@ -365,6 +365,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      is_super_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       refresh_attendance_summary: {
         Args: Record<PropertyKey, never>
         Returns: undefined
