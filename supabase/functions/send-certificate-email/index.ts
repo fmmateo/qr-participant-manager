@@ -86,14 +86,33 @@ serve(async (req) => {
 </body>
 </html>`;
 
+    // Crear una URL temporal para el HTML usando htmlbin.com
+    console.log("Creando URL temporal para el HTML...");
+    const htmlbinResponse = await fetch("https://htmlbin.com/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain",
+      },
+      body: certificateHtml,
+    });
+
+    if (!htmlbinResponse.ok) {
+      throw new Error("Error al crear URL temporal para el HTML");
+    }
+
+    const htmlUrl = await htmlbinResponse.text();
+    console.log("URL temporal creada:", htmlUrl);
+
     // Construir la URL de APIFlash
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
-    apiFlashUrl.searchParams.set('html', certificateHtml);
+    apiFlashUrl.searchParams.set('url', htmlUrl);
     apiFlashUrl.searchParams.set('format', 'png');
     apiFlashUrl.searchParams.set('width', '1000');
     apiFlashUrl.searchParams.set('height', '1414');
     apiFlashUrl.searchParams.set('quality', '100');
+    apiFlashUrl.searchParams.set('full_page', 'true');
+    apiFlashUrl.searchParams.set('fresh', 'true');
 
     console.log("Generando imagen del certificado con APIFlash...");
     
