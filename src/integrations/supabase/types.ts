@@ -152,6 +152,36 @@ export type Database = {
           },
         ]
       }
+      connected_devices: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          device_label: string
+          id: string
+          is_active: boolean | null
+          last_seen: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          device_label: string
+          id?: string
+          is_active?: boolean | null
+          last_seen?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          device_label?: string
+          id?: string
+          is_active?: boolean | null
+          last_seen?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       participants: {
         Row: {
           created_at: string
@@ -265,7 +295,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_inactive_devices: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

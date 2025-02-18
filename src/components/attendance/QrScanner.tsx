@@ -6,17 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import type { Device, ConnectedDevice } from "./types";
 
 interface QrScannerProps {
   onScan: (result: string) => Promise<void>;
   isScanning: boolean;
   error?: string;
-}
-
-interface Device {
-  deviceId: string;
-  label: string;
-  isActive?: boolean;
 }
 
 export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
@@ -54,14 +49,16 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   // Registrar dispositivo en la base de datos
   const registerDevice = async (device: Device) => {
     try {
-      const { data, error } = await supabase
+      const deviceData = {
+        device_id: device.deviceId,
+        device_label: device.label,
+        last_seen: new Date().toISOString(),
+        is_active: true
+      };
+
+      const { error } = await supabase
         .from('connected_devices')
-        .upsert({
-          device_id: device.deviceId,
-          device_label: device.label,
-          last_seen: new Date().toISOString(),
-          is_active: true
-        }, {
+        .upsert(deviceData, {
           onConflict: 'device_id'
         });
 
@@ -87,7 +84,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
           schema: 'public',
           table: 'connected_devices'
         },
-        (payload) => {
+        () => {
           updateConnectedDevices();
         }
       )
@@ -99,6 +96,9 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
         updateDeviceStatus();
       }
     }, 60000);
+
+    // Cargar dispositivos conectados inicialmente
+    updateConnectedDevices();
 
     return () => {
       supabase.removeChannel(channel);
@@ -113,7 +113,10 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
     try {
       const { error } = await supabase
         .from('connected_devices')
-        .update({ last_seen: new Date().toISOString() })
+        .update({ 
+          last_seen: new Date().toISOString(),
+          is_active: true
+        })
         .eq('device_id', selectedDevice);
 
       if (error) throw error;
@@ -128,15 +131,17 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
       const { data, error } = await supabase
         .from('connected_devices')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true) as { data: ConnectedDevice[] | null, error: any };
 
       if (error) throw error;
 
-      setConnectedDevices(data.map(d => ({
-        deviceId: d.device_id,
-        label: d.device_label,
-        isActive: d.is_active
-      })));
+      if (data) {
+        setConnectedDevices(data.map(d => ({
+          deviceId: d.device_id,
+          label: d.device_label,
+          isActive: d.is_active
+        })));
+      }
     } catch (error) {
       console.error('Error al obtener dispositivos conectados:', error);
     }
