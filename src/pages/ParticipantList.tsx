@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen, Trash, UserCog } from "lucide-react";
+import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen, Trash } from "lucide-react";
 import { ParticipantTable } from "@/components/participants/ParticipantTable";
 import { AttendanceTable } from "@/components/participants/AttendanceTable";
 import type { Participant, AttendanceRecord } from "@/components/attendance/types";
@@ -21,25 +21,11 @@ const ParticipantList = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       navigate("/auth");
-    }
-  };
-
-  const checkSuperAdmin = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      setIsSuperAdmin(data?.is_super_admin || false);
     }
   };
 
@@ -102,7 +88,6 @@ const ParticipantList = () => {
 
   useEffect(() => {
     checkAuth();
-    checkSuperAdmin();
     loadParticipants();
     loadAttendance();
 
@@ -353,16 +338,6 @@ const ParticipantList = () => {
               <UserCheck className="mr-2 h-4 w-4" />
               Nueva Inscripción
             </Button>
-            {isSuperAdmin && (
-              <Button 
-                variant="default" 
-                onClick={() => navigate("/admin-users")}
-                className="bg-primary"
-              >
-                <UserCog className="mr-2 h-4 w-4" />
-                Gestionar Admins
-              </Button>
-            )}
             <Button 
               variant="default" 
               onClick={() => navigate("/programs")}
