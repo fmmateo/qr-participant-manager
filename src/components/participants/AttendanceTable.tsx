@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2, Download } from "lucide-react";
+import { Pencil, Trash2, Download, Eye } from "lucide-react";
 import { useState, useMemo } from "react";
 import type { AttendanceRecord } from "../attendance/types";
 
@@ -38,6 +38,7 @@ export const AttendanceTable = ({
     attendance_time: "",
     status: "valid"
   });
+  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped');
 
   // Agrupar registros por fecha
   const groupedRecords = useMemo(() => {
@@ -105,15 +106,110 @@ export const AttendanceTable = ({
     document.body.removeChild(link);
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={exportToCSV} className="mb-4">
-          <Download className="mr-2 h-4 w-4" />
-          Exportar a CSV
-        </Button>
-      </div>
+  const renderListView = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Fecha</TableHead>
+          <TableHead>Participante</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Hora de Registro</TableHead>
+          <TableHead>Estado</TableHead>
+          <TableHead className="text-right">Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {attendanceRecords.map((record) => (
+          <TableRow key={record.id}>
+            <TableCell>{new Date(record.session_date).toLocaleDateString()}</TableCell>
+            <TableCell>{record.participant?.name}</TableCell>
+            <TableCell>{record.participant?.email}</TableCell>
+            <TableCell>
+              {new Date(record.attendance_time).toLocaleTimeString()}
+            </TableCell>
+            <TableCell>{record.status || 'valid'}</TableCell>
+            <TableCell className="text-right space-x-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEdit(record)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Editar Registro de Asistencia</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleUpdate} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="session_date">Fecha de Sesión</Label>
+                      <Input
+                        id="session_date"
+                        type="date"
+                        value={formData.session_date}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            session_date: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="attendance_time">Hora de Registro</Label>
+                      <Input
+                        id="attendance_time"
+                        type="time"
+                        value={formData.attendance_time}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            attendance_time: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Estado</Label>
+                      <Input
+                        id="status"
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            status: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      Actualizar
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(record.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
+  const renderGroupedView = () => (
+    <>
       {Array.from(groupedRecords.entries()).map(([date, records]) => (
         <div key={date} className="mb-8">
           <h3 className="text-lg font-semibold mb-4">
@@ -218,6 +314,35 @@ export const AttendanceTable = ({
           </Table>
         </div>
       ))}
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            onClick={() => setViewMode('list')}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Vista Lista
+          </Button>
+          <Button
+            variant={viewMode === 'grouped' ? 'default' : 'outline'}
+            onClick={() => setViewMode('grouped')}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Vista Agrupada
+          </Button>
+        </div>
+        <Button onClick={exportToCSV}>
+          <Download className="mr-2 h-4 w-4" />
+          Exportar a CSV
+        </Button>
+      </div>
+
+      {viewMode === 'list' ? renderListView() : renderGroupedView()}
     </div>
   );
 };
