@@ -1,7 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, rgb, StandardFonts, degrees } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
         y,
         borderColor: lightGreenColor,
         color: lightGreenColor,
-        rotate: rotate ? Math.PI : 0,
+        rotate: rotate ? degrees(180) : degrees(0),
         scale: 1,
       });
     };
