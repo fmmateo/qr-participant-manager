@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,10 @@ const ParticipantList = () => {
             id,
             name,
             email,
-            created_at
+            qr_code,
+            status,
+            created_at,
+            updated_at
           )
         `)
         .order("session_date", { ascending: false });
