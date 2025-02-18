@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QrReader } from "react-qr-reader";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,38 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
+  const [usbBuffer, setUsbBuffer] = useState<string>('');
   const { toast } = useToast();
+
+  // Manejar entrada del lector USB
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (!isScanning) return;
+
+    // Si es Enter, procesar el código escaneado
+    if (event.key === 'Enter') {
+      if (usbBuffer) {
+        onScan(usbBuffer);
+        setUsbBuffer('');
+      }
+      return;
+    }
+
+    // Acumular caracteres en el buffer
+    setUsbBuffer(prev => prev + event.key);
+
+    // Limpiar el buffer después de un tiempo de inactividad
+    setTimeout(() => {
+      setUsbBuffer('');
+    }, 100);
+  }, [isScanning, usbBuffer, onScan]);
+
+  // Configurar el listener para el lector USB
+  useEffect(() => {
+    window.addEventListener('keypress', handleKeyPress);
+    return () => {
+      window.removeEventListener('keypress', handleKeyPress);
+    };
+  }, [handleKeyPress]);
 
   // Obtener dispositivos locales
   useEffect(() => {
@@ -210,6 +241,13 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
             </Badge>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Escáner USB</Label>
+        <p className="text-sm text-muted-foreground">
+          Conecta un lector de códigos USB para escanear automáticamente
+        </p>
       </div>
 
       <div className="relative aspect-square w-full max-w-sm mx-auto overflow-hidden rounded-lg">
