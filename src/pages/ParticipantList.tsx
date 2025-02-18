@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import {
 } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen } from "lucide-react";
+import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen, Trash } from "lucide-react";
 import { ParticipantTable } from "@/components/participants/ParticipantTable";
 import { AttendanceTable } from "@/components/participants/AttendanceTable";
 import type { Participant, AttendanceRecord } from "@/components/attendance/types";
@@ -131,6 +130,86 @@ const ParticipantList = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
+  };
+
+  const handleDeleteAllParticipants = async () => {
+    if (!confirm("¿Estás seguro de eliminar TODOS los participantes? Esta acción no se puede deshacer y eliminará también todos los registros asociados.")) return;
+    
+    // Segunda confirmación para evitar eliminaciones accidentales
+    if (!confirm("¡ADVERTENCIA! Esta acción eliminará permanentemente todos los participantes y sus registros. ¿Estás completamente seguro?")) return;
+
+    try {
+      // Primero eliminamos los registros de asistencia
+      const { error: attendanceError } = await supabase
+        .from("attendance")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Elimina todos los registros
+
+      if (attendanceError) throw attendanceError;
+
+      // Luego eliminamos los registros de inscripción
+      const { error: registrationsError } = await supabase
+        .from("registrations")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (registrationsError) throw registrationsError;
+
+      // Finalmente eliminamos los participantes
+      const { error: participantsError } = await supabase
+        .from("participants")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (participantsError) throw participantsError;
+
+      toast({
+        title: "¡Éxito!",
+        description: "Todos los participantes y sus registros han sido eliminados correctamente",
+      });
+
+      // Recargamos las listas
+      loadParticipants();
+      loadAttendance();
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar los participantes y sus registros",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAllAttendance = async () => {
+    if (!confirm("¿Estás seguro de eliminar TODOS los registros de asistencia? Esta acción no se puede deshacer.")) return;
+    
+    // Segunda confirmación para evitar eliminaciones accidentales
+    if (!confirm("¡ADVERTENCIA! Esta acción eliminará permanentemente todos los registros de asistencia. ¿Estás completamente seguro?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("attendance")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Éxito!",
+        description: "Todos los registros de asistencia han sido eliminados correctamente",
+      });
+
+      // Recargamos la lista de asistencia
+      loadAttendance();
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar los registros de asistencia",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateParticipant = async (id: string, data: { name: string; email: string }) => {
@@ -290,6 +369,14 @@ const ParticipantList = () => {
             <TabsContent value="participants" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-bold">Lista de Participantes</h2>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteAllParticipants}
+                  className="gap-2"
+                >
+                  <Trash className="h-4 w-4" />
+                  Eliminar Todos
+                </Button>
               </div>
 
               {loading ? (
@@ -306,6 +393,14 @@ const ParticipantList = () => {
             <TabsContent value="attendance" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-bold">Registro de Asistencia</h2>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteAllAttendance}
+                  className="gap-2"
+                >
+                  <Trash className="h-4 w-4" />
+                  Eliminar Todos
+                </Button>
               </div>
 
               {loading ? (
