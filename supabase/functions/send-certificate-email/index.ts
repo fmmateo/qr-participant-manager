@@ -43,19 +43,32 @@ const handler = async (req: Request): Promise<Response> => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    console.log("Generando PDF para:", name);
-    
-    const pdfDoc = await PDFDocument.create();
+    console.log("Iniciando generación de PDF...");
+    let pdfDoc: typeof PDFDocument;
+    try {
+      pdfDoc = await PDFDocument.create();
+    } catch (error) {
+      console.error("Error al crear documento PDF:", error);
+      throw new Error("Error al crear documento PDF");
+    }
+
     const page = pdfDoc.addPage([842, 595]); // A4 landscape
     const { width, height } = page.getSize();
 
-    const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-    const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    console.log("Cargando fuentes...");
+    let font, regularFont;
+    try {
+      font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    } catch (error) {
+      console.error("Error al cargar fuentes:", error);
+      throw new Error("Error al cargar fuentes");
+    }
 
     const goldColor = rgb(0.855, 0.647, 0.125);
     const darkGreenColor = rgb(0, 0.3, 0.1);
 
-    // Fondo
+    // Fondo y borde
     page.drawRectangle({
       x: 0,
       y: 0,
@@ -64,7 +77,6 @@ const handler = async (req: Request): Promise<Response> => {
       color: darkGreenColor,
     });
 
-    // Borde
     const margin = 20;
     page.drawRectangle({
       x: margin,
@@ -75,40 +87,11 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    try {
-      // Cargar y agregar el logo
-      console.log("Intentando cargar el logo...");
-      const logoUrl = "https://raw.githubusercontent.com/conapcoop/assets/main/logo-conapcoop.png";
-      const logoResponse = await fetch(logoUrl);
-      
-      if (!logoResponse.ok) {
-        throw new Error(`Error al cargar el logo: ${logoResponse.status}`);
-      }
-      
-      const logoData = await logoResponse.arrayBuffer();
-      const logoImage = await pdfDoc.embedPng(logoData);
-      
-      // Calcular dimensiones del logo para mantener proporción y centrarlo
-      const logoMaxWidth = 150;
-      const logoDims = logoImage.scale(logoMaxWidth / logoImage.width);
-      
-      page.drawImage(logoImage, {
-        x: (width - logoDims.width) / 2,
-        y: height - 120 - logoDims.height,
-        width: logoDims.width,
-        height: logoDims.height,
-      });
-      console.log("Logo cargado y agregado exitosamente");
-    } catch (logoError) {
-      console.error("Error al cargar el logo:", logoError);
-      // Continuar sin el logo si hay error
-    }
-
     // Textos centrados
     const textWidth = font.widthOfTextAtSize('CONSEJO NACIONAL DE COOPERATIVAS', 28);
     page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
       x: (width - textWidth) / 2,
-      y: height - 200,
+      y: height - 120,
       size: 28,
       font,
       color: goldColor,
@@ -117,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
     const subtitleWidth = font.widthOfTextAtSize('CONAPCOOP', 24);
     page.drawText('CONAPCOOP', {
       x: (width - subtitleWidth) / 2,
-      y: height - 240,
+      y: height - 160,
       size: 24,
       font,
       color: goldColor,
@@ -126,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
     const certTextWidth = regularFont.widthOfTextAtSize(`Otorga el presente certificado de ${certificateTypeText} a:`, 16);
     page.drawText(`Otorga el presente certificado de ${certificateTypeText} a:`, {
       x: (width - certTextWidth) / 2,
-      y: height - 300,
+      y: height - 220,
       size: 16,
       font: regularFont,
       color: goldColor,
@@ -135,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
     const nameWidth = font.widthOfTextAtSize(name.toUpperCase(), 36);
     page.drawText(name.toUpperCase(), {
       x: (width - nameWidth) / 2,
-      y: height - 350,
+      y: height - 270,
       size: 36,
       font,
       color: goldColor,
@@ -144,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
     const programTextWidth = regularFont.widthOfTextAtSize(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, 16);
     page.drawText(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, {
       x: (width - programTextWidth) / 2,
-      y: height - 400,
+      y: height - 320,
       size: 16,
       font: regularFont,
       color: goldColor,
@@ -153,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
     const programNameWidth = font.widthOfTextAtSize(`"${programName}"`, 24);
     page.drawText(`"${programName}"`, {
       x: (width - programNameWidth) / 2,
-      y: height - 450,
+      y: height - 370,
       size: 24,
       font,
       color: goldColor,
@@ -179,56 +162,69 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Guardando PDF...");
-    const pdfBytes = await pdfDoc.save();
-    console.log("PDF generado exitosamente");
+    let pdfBytes;
+    try {
+      pdfBytes = await pdfDoc.save();
+      console.log("PDF generado exitosamente");
+    } catch (error) {
+      console.error("Error al guardar PDF:", error);
+      throw new Error("Error al guardar PDF");
+    }
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       throw new Error("RESEND_API_KEY no está configurada");
     }
 
+    console.log("Inicializando cliente Resend...");
     const resend = new Resend(resendApiKey);
-    console.log("Cliente Resend inicializado");
 
     // Convertir el PDF a base64
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
-    console.log("PDF convertido a base64");
+    try {
+      const uint8Array = new Uint8Array(pdfBytes);
+      const pdfBase64 = btoa(String.fromCharCode.apply(null, uint8Array));
+      console.log("PDF convertido a base64 exitosamente");
 
-    const emailResponse = await resend.emails.send({
-      from: "Certificados CONAPCOOP <onboarding@resend.dev>",
-      to: [email],
-      subject: `Tu certificado de ${certificateType} - ${programType}`,
-      html: `
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #004d1a; text-align: center;">Tu Certificado CONAPCOOP</h1>
-          <p style="color: #666;">Estimado/a ${name},</p>
-          <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
-          <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
-          <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
-          <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: `certificado-${certificateNumber}.pdf`,
-          content: pdfBase64,
-          type: 'application/pdf'
-        },
-      ],
-    });
+      console.log("Enviando email...");
+      const emailResponse = await resend.emails.send({
+        from: "Certificados CONAPCOOP <onboarding@resend.dev>",
+        to: [email],
+        subject: `Tu certificado de ${certificateType} - ${programType}`,
+        html: `
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #004d1a; text-align: center;">Tu Certificado CONAPCOOP</h1>
+            <p style="color: #666;">Estimado/a ${name},</p>
+            <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
+            <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
+            <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
+            <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `certificado-${certificateNumber}.pdf`,
+            content: pdfBase64,
+            type: 'application/pdf'
+          },
+        ],
+      });
 
-    console.log("Email enviado exitosamente:", emailResponse);
+      console.log("Email enviado exitosamente:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      return new Response(JSON.stringify(emailResponse), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      console.error("Error al convertir PDF o enviar email:", error);
+      throw new Error(`Error al procesar el PDF o enviar email: ${error.message}`);
+    }
   } catch (error) {
     console.error("Error en la función send-certificate-email:", error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Error desconocido",
-        details: error instanceof Error ? error.stack : undefined,
+        error: error.message || "Error desconocido",
+        details: error.stack || "No hay detalles disponibles",
       }),
       {
         status: 500,
