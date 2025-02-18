@@ -2,35 +2,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Shield, UserCog } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ArrowLeft } from "lucide-react";
 import type { AdminUser } from "@/types/database";
-
-interface AuthUser {
-  id: string;
-  email?: string;
-}
+import type { User } from '@supabase/supabase-js';
 
 interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
   email: string;
@@ -41,13 +18,7 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<AdminUserWithEmail[]>([]);
-  const [newAdminEmail, setNewAdminEmail] = useState("");
-  const [newAdminPassword, setNewAdminPassword] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    loadAdminUsers();
-  }, []);
 
   const loadAdminUsers = async () => {
     try {
@@ -63,15 +34,26 @@ const AdminUsers = () => {
         }
         throw adminError;
       }
-      
+
       if (!adminUsersData || adminUsersData.length === 0) {
         setAdminUsers([]);
         setLoading(false);
         return;
       }
 
-      const { data: authData } = await supabase.auth.admin.listUsers();
-      const users = (authData?.users || []) as AuthUser[];
+      const userIds = adminUsersData.map(admin => admin.user_id);
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      const usersPromises = uniqueUserIds.map(async (userId) => {
+        const { data: { user }, error } = await supabase.auth.admin.getUserById(userId as string);
+        if (error) {
+          console.error('Error fetching user:', error);
+          return null;
+        }
+        return user;
+      });
+
+      const users = (await Promise.all(usersPromises)).filter((user): user is User => user !== null);
 
       const combinedData = adminUsersData.map(admin => ({
         id: admin.id,
@@ -96,69 +78,9 @@ const AdminUsers = () => {
     }
   };
 
-  const handleCreateAdmin = async () => {
-    try {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newAdminEmail,
-        password: newAdminPassword,
-        email_confirm: true
-      });
-
-      if (authError) throw authError;
-
-      const { error: adminError } = await supabase
-        .from('admin_users')
-        .insert([{
-          user_id: authData.user.id,
-          is_super_admin: false,
-          is_active: true
-        }]);
-
-      if (adminError) throw adminError;
-
-      toast({
-        title: "¡Éxito!",
-        description: "Administrador creado correctamente",
-      });
-
-      setDialogOpen(false);
-      setNewAdminEmail("");
-      setNewAdminPassword("");
-      loadAdminUsers();
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Error al crear el administrador",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleToggleActive = async (adminId: string, isActive: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('admin_users')
-        .update({ is_active: !isActive })
-        .eq('id', adminId);
-
-      if (error) throw error;
-
-      toast({
-        title: "¡Éxito!",
-        description: `Administrador ${isActive ? 'desactivado' : 'activado'} correctamente`,
-      });
-
-      loadAdminUsers();
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Error al actualizar el estado del administrador",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    loadAdminUsers();
+  }, []);
 
   if (loading) {
     return (
@@ -188,82 +110,13 @@ const AdminUsers = () => {
                 Administra los usuarios con acceso al panel
               </p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Administrador
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Crear Nuevo Administrador</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo electrónico</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newAdminEmail}
-                      onChange={(e) => setNewAdminEmail(e.target.value)}
-                      placeholder="admin@ejemplo.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={newAdminPassword}
-                      onChange={(e) => setNewAdminPassword(e.target.value)}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleCreateAdmin}>
-                    Crear Administrador
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <CreateAdminDialog onAdminCreated={loadAdminUsers} />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Correo electrónico</TableHead>
-                <TableHead>Super Admin</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {adminUsers.map((admin) => (
-                <TableRow key={admin.id}>
-                  <TableCell className="font-medium">{admin.email}</TableCell>
-                  <TableCell>
-                    {admin.is_super_admin ? (
-                      <Shield className="h-4 w-4 text-primary" />
-                    ) : (
-                      <UserCog className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </TableCell>
-                  <TableCell>{admin.is_active ? 'Activo' : 'Inactivo'}</TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={admin.is_active}
-                      onCheckedChange={() => handleToggleActive(admin.id, admin.is_active)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <AdminUsersTable 
+            adminUsers={adminUsers}
+            onAdminUpdated={loadAdminUsers}
+          />
         </Card>
       </div>
     </div>

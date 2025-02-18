@@ -361,6 +361,12 @@ export type Database = {
       }
     }
     Functions: {
+      check_admin_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       cleanup_inactive_devices: {
         Args: Record<PropertyKey, never>
         Returns: undefined

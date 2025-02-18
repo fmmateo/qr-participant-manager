@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
 
 interface CreateAdminDialogProps {
   onAdminCreated: () => void;
@@ -21,9 +21,9 @@ interface CreateAdminDialogProps {
 
 export const CreateAdminDialog = ({ onAdminCreated }: CreateAdminDialogProps) => {
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleCreateAdmin = async () => {
     try {
