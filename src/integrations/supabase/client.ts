@@ -19,6 +19,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   db: {
     schema: 'public'
+  },
+  // Configuración específica para funciones edge
+  edgeFunction: {
+    retry: {
+      count: 3, // Intentar hasta 3 veces
+      initialDelay: 100, // Esperar 100ms antes del primer reintento
+    }
   }
 });
 
