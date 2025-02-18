@@ -165,19 +165,21 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información del certificado en la parte inferior
-    const certNumberWidth = regularFont.widthOfTextAtSize(`Certificado N°: ${certificateNumber}`, 12);
+    // Información del certificado en la parte inferior derecha
+    const rightMargin = 80; // Margen desde el borde derecho
+
+    // Número de certificado
     page.drawText(`Certificado N°: ${certificateNumber}`, {
-      x: (width - certNumberWidth) / 2,
+      x: width - rightMargin - font.widthOfTextAtSize(`Certificado N°: ${certificateNumber}`, 12),
       y: 100,
       size: 12,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    const dateWidth = regularFont.widthOfTextAtSize(`Fecha de emisión: ${issueDate}`, 12);
+    // Fecha de emisión
     page.drawText(`Fecha de emisión: ${issueDate}`, {
-      x: (width - dateWidth) / 2,
+      x: width - rightMargin - font.widthOfTextAtSize(`Fecha de emisión: ${issueDate}`, 12),
       y: 80,
       size: 12,
       font: regularFont,
