@@ -1,6 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { PDFDocument, rgb, StandardFonts, degrees } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,53 +52,27 @@ const handler = async (req: Request): Promise<Response> => {
     const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-    // Colores actualizados según la imagen
-    const lightGreenColor = rgb(0.678, 0.847, 0.302); // Color verde claro del borde
-    const darkGreenColor = rgb(0.125, 0.502, 0.125); // Color verde oscuro para textos
-    const backgroundColor = rgb(1, 1, 1); // Fondo blanco
-
     // Fondo blanco
     page.drawRectangle({
       x: 0,
       y: 0,
       width,
       height,
-      color: backgroundColor,
+      color: rgb(1, 1, 1),
     });
 
-    // Borde decorativo verde claro
+    // Borde verde
     const borderMargin = 40;
-    const cornerSize = 80;
-    
-    // Líneas principales del borde
     page.drawRectangle({
       x: borderMargin,
       y: borderMargin,
       width: width - (borderMargin * 2),
       height: height - (borderMargin * 2),
-      borderColor: lightGreenColor,
+      borderColor: rgb(0.125, 0.502, 0.125),
       borderWidth: 2,
     });
 
-    // Elementos decorativos en las esquinas (similar a la imagen)
-    const drawCornerDecoration = (x: number, y: number, rotate: boolean = false) => {
-      page.drawSvgPath(`M 0 0 Q 20 0 40 20 Q 60 40 60 60`, {
-        x,
-        y,
-        borderColor: lightGreenColor,
-        color: lightGreenColor,
-        rotate: rotate ? degrees(180) : degrees(0),
-        scale: 1,
-      });
-    };
-
-    // Dibujar las decoraciones en las cuatro esquinas
-    drawCornerDecoration(borderMargin, height - borderMargin - cornerSize);
-    drawCornerDecoration(width - borderMargin - cornerSize, height - borderMargin - cornerSize);
-    drawCornerDecoration(borderMargin, borderMargin + cornerSize, true);
-    drawCornerDecoration(width - borderMargin - cornerSize, borderMargin + cornerSize, true);
-
-    // Cargar y agregar el logo nuevo
+    // Cargar y agregar el logo
     try {
       console.log("Cargando logo...");
       const logoUrl = "public/lovable-uploads/dac3819a-b161-4058-9f3f-8bfe0d9adfa3.png";
@@ -111,49 +86,41 @@ const handler = async (req: Request): Promise<Response> => {
       const logoImage = await pdfDoc.embedPng(logoData);
       
       // Calcular dimensiones del logo para mantener proporción y centrarlo
-      const logoMaxWidth = 100;
-      const logoDims = logoImage.scale(logoMaxWidth / logoImage.width);
+      const logoMaxHeight = 120; // Altura máxima del logo
+      const scale = logoMaxHeight / logoImage.height;
+      const scaledWidth = logoImage.width * scale;
       
+      // Posicionar el logo en la parte superior centrada
       page.drawImage(logoImage, {
-        x: (width - logoDims.width) / 2,
-        y: height - 180 - logoDims.height,
-        width: logoDims.width,
-        height: logoDims.height,
+        x: (width - scaledWidth) / 2,
+        y: height - 180, // Posición desde arriba
+        width: scaledWidth,
+        height: logoMaxHeight,
       });
       console.log("Logo agregado exitosamente");
     } catch (logoError) {
       console.error("Error al cargar el logo:", logoError);
     }
 
-    // Textos centrados con el nuevo estilo
+    // Título principal
     const titleText = 'CONSEJO NACIONAL DE COOPERATIVAS';
     const textWidth = font.widthOfTextAtSize(titleText, 28);
     page.drawText(titleText, {
       x: (width - textWidth) / 2,
-      y: height - 260,
+      y: height - 220, // Ajustado para no solaparse con el logo
       size: 28,
       font,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
+    // Subtítulo
     const subtitleWidth = font.widthOfTextAtSize('CONACOOP', 24);
     page.drawText('CONACOOP', {
       x: (width - subtitleWidth) / 2,
-      y: height - 300,
+      y: height - 260, // Espaciado adicional
       size: 24,
       font,
-      color: darkGreenColor,
-    });
-
-    // Texto "La Integración es Fortaleza" en rojo
-    const sloganText = 'La Integración es Fortaleza';
-    const sloganWidth = regularFont.widthOfTextAtSize(sloganText, 16);
-    page.drawText(sloganText, {
-      x: (width - sloganWidth) / 2,
-      y: height - 330,
-      size: 16,
-      font: regularFont,
-      color: rgb(0.8, 0.2, 0.2), // Color rojo para el slogan
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     // Certificado
@@ -161,20 +128,20 @@ const handler = async (req: Request): Promise<Response> => {
     const certTextWidth = regularFont.widthOfTextAtSize(certText, 16);
     page.drawText(certText, {
       x: (width - certTextWidth) / 2,
-      y: height - 380,
+      y: height - 320,
       size: 16,
       font: regularFont,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Nombre del participante
+    // Nombre del participante (más grande y destacado)
     const nameWidth = font.widthOfTextAtSize(name.toUpperCase(), 36);
     page.drawText(name.toUpperCase(), {
       x: (width - nameWidth) / 2,
-      y: height - 430,
+      y: height - 380,
       size: 36,
       font,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     // Tipo de programa
@@ -182,20 +149,20 @@ const handler = async (req: Request): Promise<Response> => {
     const programTextWidth = regularFont.widthOfTextAtSize(programText, 16);
     page.drawText(programText, {
       x: (width - programTextWidth) / 2,
-      y: height - 480,
+      y: height - 440,
       size: 16,
       font: regularFont,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     // Nombre del programa
     const programNameWidth = font.widthOfTextAtSize(`"${programName}"`, 24);
     page.drawText(`"${programName}"`, {
       x: (width - programNameWidth) / 2,
-      y: height - 520,
+      y: height - 480,
       size: 24,
       font,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     // Información del certificado en la parte inferior
@@ -205,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
       y: 100,
       size: 12,
       font: regularFont,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     const dateWidth = regularFont.widthOfTextAtSize(`Fecha de emisión: ${issueDate}`, 12);
@@ -214,7 +181,7 @@ const handler = async (req: Request): Promise<Response> => {
       y: 80,
       size: 12,
       font: regularFont,
-      color: darkGreenColor,
+      color: rgb(0.125, 0.502, 0.125),
     });
 
     console.log("Guardando PDF...");
