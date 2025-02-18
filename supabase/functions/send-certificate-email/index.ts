@@ -17,21 +17,6 @@ interface CertificateEmailRequest {
   issueDate: string;
 }
 
-async function getAssetUrl(name: string): Promise<string> {
-  const { data: asset, error } = await supabase
-    .from('certificate_assets')
-    .select('asset_url')
-    .eq('name', name)
-    .single();
-
-  if (error || !asset) {
-    console.error('Error fetching asset:', name, error);
-    throw new Error(`Asset not found: ${name}`);
-  }
-
-  return asset.asset_url;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -89,34 +74,43 @@ serve(async (req) => {
             padding: 40px;
             max-width: 800px;
             margin: 0 auto;
+            background-color: rgba(0, 77, 26, 0.9);
           }
           .title {
             color: #FFD700;
             font-size: 32px;
             margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
           }
           .subtitle {
             color: #FFD700;
             font-size: 24px;
             margin-bottom: 40px;
+            letter-spacing: 1px;
           }
           .name {
             color: #FFD700;
             font-size: 48px;
             margin: 30px 0;
+            text-transform: uppercase;
+            letter-spacing: 3px;
           }
           .details {
             margin: 20px 0;
             font-size: 18px;
+            line-height: 1.5;
           }
           .program {
             color: #FFD700;
             font-size: 28px;
             margin: 20px 0;
+            font-style: italic;
           }
           .footer {
             font-size: 16px;
             margin-top: 40px;
+            color: #FFD700;
           }
         </style>
       </head>
@@ -148,9 +142,25 @@ serve(async (req) => {
 
     // Codificar el HTML para la API
     const encodedHtml = encodeURIComponent(certificateHtml);
+    const apiFlashKey = Deno.env.get("APIFLASH_ACCESS_KEY");
     
-    // Usar un servicio de conversión HTML a PNG
-    const certificateImageUrl = `https://api.apiflash.com/v1/urltoimage?access_key=ACCESS_KEY&url=data:text/html;charset=utf-8,${encodedHtml}&format=png&width=1000&height=1414&response_type=json`;
+    if (!apiFlashKey) {
+      throw new Error("APIFlash access key no está configurada");
+    }
+
+    // Usar APIFlash para convertir HTML a PNG
+    const certificateImageUrl = `https://api.apiflash.com/v1/urltoimage?access_key=${apiFlashKey}&url=data:text/html;charset=utf-8,${encodedHtml}&format=png&width=1000&height=1414&quality=100`;
+
+    console.log("Generando imagen del certificado con APIFlash...");
+    
+    // Obtener la imagen del certificado
+    const certificateResponse = await fetch(certificateImageUrl);
+    if (!certificateResponse.ok) {
+      throw new Error(`Error al generar el certificado: ${certificateResponse.statusText}`);
+    }
+    
+    const certificateBuffer = await certificateResponse.arrayBuffer();
+    console.log("Imagen del certificado generada exitosamente");
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -169,9 +179,6 @@ serve(async (req) => {
           <h1 style="color: #004d1a; text-align: center;">Tu Certificado CONAPCOOP</h1>
           <p style="color: #666;">Estimado/a ${name},</p>
           <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <img src="${certificateImageUrl}" alt="Certificado" style="max-width: 100%; height: auto; border: 1px solid #ddd;">
-          </div>
           <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
           <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
           <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
@@ -181,7 +188,7 @@ serve(async (req) => {
       attachments: [
         {
           filename: `certificado-${certificateNumber}.png`,
-          content: await fetch(certificateImageUrl).then(res => res.arrayBuffer())
+          content: certificateBuffer
         },
       ],
     });
