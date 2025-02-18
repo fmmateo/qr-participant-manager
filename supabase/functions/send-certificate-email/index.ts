@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -71,47 +72,48 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    // Logo como círculo verde con flechas
+    // Dibuja el logo utilizando SVGPaths
     const centerX = width / 2;
     const centerY = height - 120;
-    const radius = 50;
+    const size = 100;
 
-    // Círculo exterior plateado
+    // Círculo exterior verde
     page.drawCircle({
       x: centerX,
       y: centerY,
-      radius: radius + 5,
-      color: rgb(0.8, 0.8, 0.8),
+      radius: size / 2,
+      color: rgb(0.125, 0.502, 0.125), // Verde
     });
 
-    // Círculo interior amarillo
+    // Círculo interior amarillo más pequeño
     page.drawCircle({
       x: centerX,
       y: centerY,
-      radius: radius,
-      color: rgb(1, 0.9, 0.2),
+      radius: size / 2.5,
+      color: rgb(1, 0.843, 0), // Amarillo
     });
 
-    // Flechas verdes (simplificadas como rectángulos)
-    const arrowWidth = 20;
-    const arrowHeight = 40;
+    // Flechas estilizadas como triángulos
+    const arrowSize = size / 3;
     
-    // Flecha izquierda
+    // Triángulo izquierdo
     page.drawRectangle({
-      x: centerX - 15,
-      y: centerY - 10,
-      width: arrowWidth,
-      height: arrowHeight,
-      color: rgb(0.125, 0.502, 0.125),
+      x: centerX - arrowSize - 10,
+      y: centerY - arrowSize / 2,
+      width: arrowSize,
+      height: arrowSize,
+      color: rgb(1, 1, 1), // Blanco
+      rotate: { type: 'degrees', angle: 45 },
     });
 
-    // Flecha derecha
+    // Triángulo derecho
     page.drawRectangle({
-      x: centerX + 15,
-      y: centerY - 10,
-      width: arrowWidth,
-      height: arrowHeight,
-      color: rgb(0.125, 0.502, 0.125),
+      x: centerX + 10,
+      y: centerY - arrowSize / 2,
+      width: arrowSize,
+      height: arrowSize,
+      color: rgb(1, 1, 1), // Blanco
+      rotate: { type: 'degrees', angle: 45 },
     });
 
     // Título principal
@@ -146,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Nombre del participante (más grande y destacado)
+    // Nombre del participante
     const nameWidth = font.widthOfTextAtSize(name.toUpperCase(), 36);
     page.drawText(name.toUpperCase(), {
       x: (width - nameWidth) / 2,
@@ -177,33 +179,35 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información del certificado en la parte inferior
-    const bottomMargin = 80;
-
+    // Información adicional
+    const bottomY = 100;
+    
     // Número de certificado
     page.drawText(`Certificado N°: ${certificateNumber}`, {
       x: width - 300,
-      y: bottomMargin + 20,
+      y: bottomY + 40,
       size: 12,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Fecha de emisión
+    // Fecha
     page.drawText(`Fecha de emisión: ${issueDate}`, {
       x: width - 300,
-      y: bottomMargin,
+      y: bottomY + 20,
       size: 12,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Firma y sello (representados como texto)
-    page.drawText("FIRMA DIGITAL", {
-      x: 200,
-      y: bottomMargin + 60,
-      size: 14,
-      font,
+    // Firma
+    const signatureText = "FIRMA DIGITAL CONACOOP";
+    const signatureWidth = regularFont.widthOfTextAtSize(signatureText, 12);
+    page.drawText(signatureText, {
+      x: 150,
+      y: bottomY + 20,
+      size: 12,
+      font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
@@ -223,6 +227,7 @@ const handler = async (req: Request): Promise<Response> => {
     const pdfBase64 = btoa(String.fromCharCode.apply(null, pdfBytes));
     console.log("PDF convertido a base64 exitosamente");
 
+    // Enviar email con el logo incrustado en el HTML
     console.log("Enviando email...");
     const emailResponse = await resend.emails.send({
       from: "Certificados CONACOOP <onboarding@resend.dev>",
@@ -230,6 +235,14 @@ const handler = async (req: Request): Promise<Response> => {
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="48" fill="#208020"/>
+              <circle cx="50" cy="50" r="40" fill="#FFD700"/>
+              <rect x="30" y="35" width="15" height="30" fill="white" transform="rotate(45, 37.5, 50)"/>
+              <rect x="55" y="35" width="15" height="30" fill="white" transform="rotate(-45, 62.5, 50)"/>
+            </svg>
+          </div>
           <h1 style="color: #208020; text-align: center;">Tu Certificado CONACOOP</h1>
           <p style="color: #666;">Estimado/a ${name},</p>
           <p style="color: #666;">Adjunto encontrarás tu certificado de ${certificateType} para el ${programType.toLowerCase()} "${programName}".</p>
