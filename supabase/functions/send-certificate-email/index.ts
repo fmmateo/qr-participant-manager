@@ -24,6 +24,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const body = await req.json();
+    console.log("Recibido request:", body);
+
     const { 
       name, 
       email, 
@@ -32,17 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
       programType,
       programName,
       issueDate 
-    }: CertificateEmailRequest = await req.json();
-
-    console.log("Iniciando generación de certificado:", {
-      name,
-      email,
-      certificateNumber,
-      certificateType,
-      programType,
-      programName,
-      issueDate
-    });
+    }: CertificateEmailRequest = body;
 
     const certificateTypeText = certificateType.toLowerCase() === 'participacion' 
       ? 'PARTICIPACIÓN' 
@@ -50,16 +43,15 @@ const handler = async (req: Request): Promise<Response> => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    // Crear PDF
+    console.log("Generando PDF para:", name);
+    
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([842, 595]); // A4 landscape
     const { width, height } = page.getSize();
 
-    // Fuentes
     const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-    // Colores
     const goldColor = rgb(0.855, 0.647, 0.125);
     const darkGreenColor = rgb(0, 0.3, 0.1);
 
@@ -82,6 +74,8 @@ const handler = async (req: Request): Promise<Response> => {
       borderColor: goldColor,
       borderWidth: 2,
     });
+
+    console.log("Agregando contenido al PDF...");
 
     // Contenido
     page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
@@ -148,26 +142,25 @@ const handler = async (req: Request): Promise<Response> => {
       color: goldColor,
     });
 
+    console.log("Guardando PDF...");
     const pdfBytes = await pdfDoc.save();
     console.log("PDF generado exitosamente");
 
-    // Verificar RESEND_API_KEY
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       throw new Error("RESEND_API_KEY no está configurada");
     }
 
     const resend = new Resend(resendApiKey);
+    console.log("Cliente Resend inicializado");
 
-    // En desarrollo, enviar a email de prueba
-    const isDevelopment = !Deno.env.get("PRODUCTION");
-    const toEmail = isDevelopment ? "fmmateo98@gmail.com" : email;
-
-    console.log("Enviando email a:", toEmail);
+    // Convertir el PDF a base64
+    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+    console.log("PDF convertido a base64");
 
     const emailResponse = await resend.emails.send({
       from: "Certificados CONAPCOOP <onboarding@resend.dev>",
-      to: [toEmail],
+      to: [email],
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -177,13 +170,13 @@ const handler = async (req: Request): Promise<Response> => {
           <p style="color: #666;">Número de certificado: ${certificateNumber}</p>
           <p style="color: #666;">Fecha de emisión: ${issueDate}</p>
           <p style="color: #666; margin-top: 20px;">¡Felicitaciones por tu logro!</p>
-          ${isDevelopment ? `<p style="color: red;">MODO DESARROLLO: Email original destinado a: ${email}</p>` : ''}
         </div>
       `,
       attachments: [
         {
           filename: `certificado-${certificateNumber}.pdf`,
-          content: pdfBytes,
+          content: pdfBase64,
+          type: 'application/pdf'
         },
       ],
     });
