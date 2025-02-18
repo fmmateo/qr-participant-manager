@@ -29,17 +29,31 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
           .filter(device => device.kind === 'videoinput')
           .map(device => ({
             deviceId: device.deviceId,
-            label: device.label || `Cámara ${device.deviceId.slice(0, 5)}`
+            label: device.label || `Cámara ${device.deviceId.slice(0, 5)}`,
+            isActive: true
           }));
         
         setDevices(videoDevices);
         
+        // Si no hay dispositivo seleccionado y hay dispositivos disponibles
         if (videoDevices.length > 0 && !selectedDevice) {
-          setSelectedDevice(videoDevices[0].deviceId);
-          registerDevice(videoDevices[0]);
+          // Intentar seleccionar una cámara trasera primero
+          const backCamera = videoDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('trasera')
+          );
+          
+          const deviceToUse = backCamera || videoDevices[0];
+          setSelectedDevice(deviceToUse.deviceId);
+          registerDevice(deviceToUse);
         }
       } catch (error) {
         console.error('Error al obtener dispositivos:', error);
+        toast({
+          title: "Error al acceder a la cámara",
+          description: "Por favor, asegúrate de dar permiso para usar la cámara.",
+          variant: "destructive"
+        });
       }
     };
 
@@ -49,6 +63,14 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   // Registrar dispositivo en la base de datos
   const registerDevice = async (device: Device) => {
     try {
+      // Verificar si ya existe una sesión
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('No hay sesión activa');
+        return;
+      }
+
       const deviceData = {
         device_id: device.deviceId,
         device_label: device.label,
@@ -68,13 +90,23 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
         title: "Dispositivo conectado",
         description: `${device.label} está listo para escanear`,
       });
+
+      // Actualizar la lista de dispositivos conectados
+      updateConnectedDevices();
     } catch (error) {
       console.error('Error al registrar dispositivo:', error);
+      toast({
+        title: "Error al conectar dispositivo",
+        description: "No se pudo registrar el dispositivo en el sistema.",
+        variant: "destructive"
+      });
     }
   };
 
   // Suscribirse a cambios en dispositivos conectados
   useEffect(() => {
+    if (!selectedDevice) return;
+
     const channel = supabase
       .channel('connected-devices')
       .on(
