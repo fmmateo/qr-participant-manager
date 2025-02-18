@@ -56,13 +56,13 @@ const AdminUsers = () => {
         return;
       }
 
-      const { data } = await supabase
+      const { data: adminUser } = await supabase
         .from('admin_users')
         .select('is_super_admin')
         .eq('user_id', session.user.id)
-        .single();
+        .maybeSingle();
 
-      if (!data?.is_super_admin) {
+      if (!adminUser?.is_super_admin) {
         toast({
           title: "Acceso Denegado",
           description: "No tienes permisos de super administrador",
@@ -81,21 +81,16 @@ const AdminUsers = () => {
 
   const loadAdminUsers = async () => {
     try {
-      const { data: adminUsersData, error: adminError } = await supabase
+      const { data: adminUsersData } = await supabase
         .from('admin_users')
-        .select(`
-          id,
-          user_id,
-          is_super_admin,
-          is_active
-        `);
+        .select('*')
+        .returns<{ id: string; user_id: string; is_super_admin: boolean; is_active: boolean; }[]>();
 
-      if (adminError) throw adminError;
+      if (!adminUsersData) return;
 
-      const userIds = adminUsersData.map(admin => admin.user_id);
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
 
-      if (authError) throw authError;
+      if (!authUsers?.users) return;
 
       const combinedData = adminUsersData.map(admin => {
         const authUser = authUsers.users.find(user => user.id === admin.user_id);
@@ -122,7 +117,6 @@ const AdminUsers = () => {
 
   const handleCreateAdmin = async () => {
     try {
-      // Crear nuevo usuario en auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newAdminEmail,
         password: newAdminPassword,
@@ -131,7 +125,6 @@ const AdminUsers = () => {
 
       if (authError) throw authError;
 
-      // Crear registro en admin_users
       const { error: adminError } = await supabase
         .from('admin_users')
         .insert([{

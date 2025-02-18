@@ -30,6 +30,19 @@ const ParticipantList = () => {
     }
   };
 
+  const checkSuperAdmin = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data } = await supabase
+        .from('admin_users')
+        .select('is_super_admin')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      setIsSuperAdmin(data?.is_super_admin || false);
+    }
+  };
+
   const loadParticipants = async () => {
     try {
       const { data, error } = await supabase
@@ -89,6 +102,7 @@ const ParticipantList = () => {
 
   useEffect(() => {
     checkAuth();
+    checkSuperAdmin();
     loadParticipants();
     loadAttendance();
 
@@ -126,23 +140,6 @@ const ParticipantList = () => {
       supabase.removeChannel(participantsChannel);
       supabase.removeChannel(attendanceChannel);
     };
-  }, []);
-
-  const checkSuperAdmin = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data } = await supabase
-        .from('admin_users')
-        .select('is_super_admin')
-        .eq('user_id', session.user.id)
-        .single();
-
-      setIsSuperAdmin(data?.is_super_admin || false);
-    }
-  };
-
-  useEffect(() => {
-    checkSuperAdmin();
   }, []);
 
   const handleLogout = async () => {
