@@ -21,6 +21,19 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
   const [usbBuffer, setUsbBuffer] = useState<string>('');
   const { toast } = useToast();
 
+  // Registrar este dispositivo como móvil si estamos en un dispositivo móvil
+  useEffect(() => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      const mobileDevice: Device = {
+        deviceId: 'mobile-' + navigator.userAgent,
+        label: 'Dispositivo Móvil',
+        type: 'mobile'
+      };
+      registerDevice(mobileDevice);
+    }
+  }, []);
+
   // Manejar entrada del lector USB
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (!isScanning) return;
@@ -28,6 +41,14 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
     // Si es Enter, procesar el código escaneado
     if (event.key === 'Enter') {
       if (usbBuffer) {
+        // Registrar el lector USB como dispositivo conectado
+        const usbDevice: Device = {
+          deviceId: 'usb-scanner',
+          label: 'Lector USB',
+          type: 'usb'
+        };
+        registerDevice(usbDevice);
+        
         onScan(usbBuffer);
         setUsbBuffer('');
       }
@@ -61,6 +82,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
           .map(device => ({
             deviceId: device.deviceId,
             label: device.label || `Cámara ${device.deviceId.slice(0, 5)}`,
+            type: 'camera' as const,
             isActive: true
           }));
         
@@ -97,6 +119,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
       const deviceData = {
         device_id: device.deviceId,
         device_label: device.label,
+        device_type: device.type,
         last_seen: new Date().toISOString(),
         is_active: true
       };
@@ -128,8 +151,6 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
 
   // Suscribirse a cambios en dispositivos conectados
   useEffect(() => {
-    if (!selectedDevice) return;
-
     const channel = supabase
       .channel('connected-devices')
       .on(
@@ -147,9 +168,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
 
     // Actualizar estado de conexión cada minuto
     const interval = setInterval(() => {
-      if (selectedDevice) {
-        updateDeviceStatus();
-      }
+      updateDeviceStatus();
     }, 60000);
 
     // Cargar dispositivos conectados inicialmente
@@ -159,7 +178,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [selectedDevice]);
+  }, []);
 
   // Actualizar estado del dispositivo
   const updateDeviceStatus = async () => {
@@ -194,6 +213,7 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
         setConnectedDevices(data.map(d => ({
           deviceId: d.device_id,
           label: d.device_label,
+          type: d.device_type as 'camera' | 'usb' | 'mobile',
           isActive: d.is_active
         })));
       }
@@ -236,8 +256,11 @@ export const QrScanner = ({ onScan, isScanning, error }: QrScannerProps) => {
         <Label>Dispositivos conectados</Label>
         <div className="flex flex-wrap gap-2">
           {connectedDevices.map((device) => (
-            <Badge key={device.deviceId} variant={device.deviceId === selectedDevice ? "default" : "secondary"}>
-              {device.label}
+            <Badge 
+              key={device.deviceId} 
+              variant={device.deviceId === selectedDevice ? "default" : "secondary"}
+            >
+              {device.label} ({device.type})
             </Badge>
           ))}
         </div>

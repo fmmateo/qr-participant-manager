@@ -157,6 +157,7 @@ export type Database = {
           created_at: string | null
           device_id: string
           device_label: string
+          device_type: string | null
           id: string
           is_active: boolean | null
           last_seen: string | null
@@ -166,6 +167,7 @@ export type Database = {
           created_at?: string | null
           device_id: string
           device_label: string
+          device_type?: string | null
           id?: string
           is_active?: boolean | null
           last_seen?: string | null
@@ -175,6 +177,7 @@ export type Database = {
           created_at?: string | null
           device_id?: string
           device_label?: string
+          device_type?: string | null
           id?: string
           is_active?: boolean | null
           last_seen?: string | null
