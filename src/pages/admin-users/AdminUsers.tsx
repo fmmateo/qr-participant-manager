@@ -9,11 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { CreateAdminDialog } from "./components/CreateAdminDialog";
 import { AdminUsersTable } from "./components/AdminUsersTable";
 import type { AdminUser } from "@/types/database";
-
-interface AuthUser {
-  id: string;
-  email?: string;
-}
+import type { User } from '@supabase/supabase-js';
 
 interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
   email: string;
@@ -29,7 +25,6 @@ const AdminUsers = () => {
     try {
       setLoading(true);
       
-      // Primero verificamos si el usuario actual es administrador
       const { data: userData, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
@@ -41,7 +36,6 @@ const AdminUsers = () => {
         return;
       }
 
-      // Obtenemos los datos de administradores con la nueva política
       const { data: adminUsersData, error: adminError } = await supabase
         .from('admin_users')
         .select('*')
@@ -57,7 +51,6 @@ const AdminUsers = () => {
         return;
       }
 
-      // Obtenemos los datos de los usuarios
       const userIds = adminUsersData.map(admin => admin.user_id);
       const uniqueUserIds = [...new Set(userIds)];
       
@@ -70,9 +63,8 @@ const AdminUsers = () => {
         return user;
       });
 
-      const users = (await Promise.all(usersPromises)).filter((user): user is AuthUser => user !== null);
+      const users = (await Promise.all(usersPromises)).filter((user): user is User => user !== null);
 
-      // Combinamos los datos
       const combinedData = adminUsersData.map(admin => ({
         id: admin.id,
         email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
