@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -18,13 +19,19 @@ interface CertificateEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Iniciando función send-certificate-email");
+
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
     const body = await req.json();
-    console.log("Recibido request:", body);
+    console.log("Request recibido:", JSON.stringify(body));
 
     const { 
       name, 
@@ -35,6 +42,11 @@ const handler = async (req: Request): Promise<Response> => {
       programName,
       issueDate 
     }: CertificateEmailRequest = body;
+
+    // Validación básica
+    if (!name || !email || !certificateNumber || !certificateType || !programType || !programName) {
+      throw new Error("Faltan campos requeridos en la solicitud");
+    }
 
     const certificateTypeText = certificateType.toLowerCase() === 'participacion' 
       ? 'PARTICIPACIÓN' 
@@ -219,11 +231,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Inicializando cliente Resend...");
     const resend = new Resend(resendApiKey);
 
-    // Convertir el PDF a base64
-    const pdfBase64 = btoa(String.fromCharCode.apply(null, pdfBytes));
+    // Convertir el PDF a base64 de manera segura
+    const pdfBase64 = btoa(
+      new Uint8Array(pdfBytes).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
     console.log("PDF convertido a base64 exitosamente");
 
-    // Enviar email con el logo incrustado en el HTML
+    // Enviar email
     console.log("Enviando email...");
     const emailResponse = await resend.emails.send({
       from: "Certificados CONACOOP <onboarding@resend.dev>",
@@ -257,20 +271,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email enviado exitosamente:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, data: emailResponse }), 
+      {
+        status: 200,
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "application/json" 
+        },
+      }
+    );
   } catch (error) {
     console.error("Error en la función send-certificate-email:", error);
+    
     return new Response(
       JSON.stringify({
+        success: false,
         error: error instanceof Error ? error.message : "Error desconocido",
         details: error instanceof Error ? error.stack : undefined,
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "application/json" 
+        },
       }
     );
   }
