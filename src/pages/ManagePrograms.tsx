@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -63,14 +63,12 @@ const ManagePrograms = () => {
         description: "Programa agregado correctamente",
       });
 
-      // Limpiar formulario
       setFormData({
         name: '',
         type: '',
         is_active: true
       });
 
-      // Actualizar la lista de programas
       queryClient.invalidateQueries({ queryKey: ['programs'] });
     } catch (error) {
       console.error('Error:', error);
@@ -104,6 +102,31 @@ const ManagePrograms = () => {
       toast({
         title: "Error",
         description: "Error al actualizar el estado del programa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteProgram = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('programs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+      
+      toast({
+        title: "¡Éxito!",
+        description: "Programa eliminado correctamente",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar el programa",
         variant: "destructive",
       });
     }
@@ -196,14 +219,23 @@ const ManagePrograms = () => {
                             Tipo: {program.type.charAt(0).toUpperCase() + program.type.slice(1)}
                           </p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={program.is_active}
-                            onCheckedChange={() => toggleProgramStatus(program.id, program.is_active)}
-                          />
-                          <span className={program.is_active ? "text-green-600" : "text-red-600"}>
-                            {program.is_active ? "Activo" : "Inactivo"}
-                          </span>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={program.is_active}
+                              onCheckedChange={() => toggleProgramStatus(program.id, program.is_active)}
+                            />
+                            <span className={program.is_active ? "text-green-600" : "text-red-600"}>
+                              {program.is_active ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => deleteProgram(program.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </Card>
@@ -219,3 +251,4 @@ const ManagePrograms = () => {
 };
 
 export default ManagePrograms;
+
