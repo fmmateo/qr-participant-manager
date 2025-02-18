@@ -363,14 +363,16 @@ const ParticipantList = () => {
                 Gestionar Admins
               </Button>
             )}
-            <Button 
-              variant="default" 
-              onClick={() => navigate("/programs")}
-              className="bg-primary"
-            >
-              <BookOpen className="mr-2 h-4 w-4" />
-              Gestionar Programas
-            </Button>
+            {isSuperAdmin && (
+              <Button 
+                variant="default" 
+                onClick={() => navigate("/programs")}
+                className="bg-primary"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Gestionar Programas
+              </Button>
+            )}
             <Button variant="outline" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Cerrar Sesión
