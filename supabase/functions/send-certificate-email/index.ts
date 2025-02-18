@@ -176,9 +176,10 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información adicional en la parte inferior
-    const bottomY = 120; // Ajustado ligeramente más arriba
+    // Información adicional en la parte inferior - Ajustada más abajo
+    const bottomY = 80; // Reducido de 120 a 80 para bajar la información
     
+    // Número de certificado
     page.drawText(`Certificado N°: ${certificateNumber}`, {
       x: width - 300,
       y: bottomY + 40,
@@ -187,6 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
+    // Fecha de emisión
     page.drawText(`Fecha de emisión: ${issueDate}`, {
       x: width - 300,
       y: bottomY + 20,
@@ -195,6 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
+    // Firma digital
     const signatureText = "FIRMA DIGITAL CONACOOP";
     page.drawText(signatureText, {
       x: 150,
