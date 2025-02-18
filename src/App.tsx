@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import ParticipantList from "./pages/ParticipantList";
 import Registration from "./pages/Registration";
 import ManagePrograms from "./pages/ManagePrograms";
+import AdminUsers from "./pages/AdminUsers";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/registration" element={<Registration />} />
             <Route path="/programs" element={<ManagePrograms />} />
+            <Route path="/admin-users" element={<AdminUsers />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
