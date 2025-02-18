@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -20,6 +18,13 @@ serve(async (req) => {
   }
 
   try {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
+    const resend = new Resend(resendApiKey);
+
     if (req.method !== "POST") {
       throw new Error(`HTTP method ${req.method} not allowed`);
     }
@@ -46,7 +51,7 @@ serve(async (req) => {
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
 
     // Enviar email
-    console.log("Sending email...");
+    console.log("Sending email to:", email);
     const { data: emailResponse, error: emailError } = await resend.emails.send({
       from: "Asistencias <noreply@resend.dev>",
       to: [email],
@@ -65,13 +70,18 @@ serve(async (req) => {
     });
 
     if (emailError) {
+      console.error("Error sending email:", emailError);
       throw emailError;
     }
 
     console.log("Email sent successfully:", emailResponse);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Email sent successfully" }),
+      JSON.stringify({ 
+        success: true, 
+        message: "Email sent successfully",
+        data: emailResponse 
+      }),
       {
         status: 200,
         headers: {
@@ -83,10 +93,14 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in send-qr-email function:", error);
     
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Detailed error:", errorMessage);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred"
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
       }),
       {
         status: 500,
