@@ -35,7 +35,7 @@ const ParticipantList = () => {
     if (session) {
       const { data } = await supabase
         .from('admin_users')
-        .select('is_super_admin')
+        .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
 

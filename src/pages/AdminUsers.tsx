@@ -25,12 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Plus, Shield, UserCog } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import type { AdminUser } from "@/types/database";
 
-interface AdminUser {
-  id: string;
+interface AdminUserWithEmail extends Omit<AdminUser, 'user_id'> {
   email: string;
-  is_super_admin: boolean;
-  is_active: boolean;
 }
 
 const AdminUsers = () => {
@@ -38,7 +36,7 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUserWithEmail[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,7 +56,7 @@ const AdminUsers = () => {
 
       const { data: adminUser } = await supabase
         .from('admin_users')
-        .select('is_super_admin')
+        .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
@@ -83,8 +81,7 @@ const AdminUsers = () => {
     try {
       const { data: adminUsersData } = await supabase
         .from('admin_users')
-        .select('*')
-        .returns<{ id: string; user_id: string; is_super_admin: boolean; is_active: boolean; }[]>();
+        .select('*');
 
       if (!adminUsersData) return;
 
@@ -92,15 +89,14 @@ const AdminUsers = () => {
 
       if (!authUsers?.users) return;
 
-      const combinedData = adminUsersData.map(admin => {
-        const authUser = authUsers.users.find(user => user.id === admin.user_id);
-        return {
-          id: admin.id,
-          email: authUser?.email || 'Usuario no encontrado',
-          is_super_admin: admin.is_super_admin,
-          is_active: admin.is_active,
-        };
-      });
+      const combinedData = adminUsersData.map(admin => ({
+        id: admin.id,
+        email: authUsers.users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
+        is_super_admin: admin.is_super_admin,
+        is_active: admin.is_active,
+        created_at: admin.created_at,
+        updated_at: admin.updated_at
+      }));
 
       setAdminUsers(combinedData);
     } catch (error) {
