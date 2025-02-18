@@ -18,7 +18,8 @@ interface CertificateEmailRequest {
   issueDate: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -34,7 +35,7 @@ serve(async (req) => {
       issueDate 
     }: CertificateEmailRequest = await req.json();
 
-    console.log("Procesando solicitud de certificado para:", {
+    console.log("Iniciando procesamiento de certificado:", {
       name,
       email,
       certificateNumber,
@@ -50,57 +51,82 @@ serve(async (req) => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    console.log("Generando PDF del certificado...");
+    console.log("Creando documento PDF...");
 
     // Crear un nuevo documento PDF
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([842, 595]); // A4 en puntos (landscape)
-    
-    // Cargar la fuente
+    console.log("PDF creado");
+
+    // Configurar página A4 horizontal
+    const page = pdfDoc.addPage([842, 595]);
+    const { width, height } = page.getSize();
+    console.log("Página agregada:", { width, height });
+
+    // Cargar fuentes
+    console.log("Cargando fuentes...");
     const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-    
-    // Configurar el tamaño y la posición del texto
-    const { width, height } = page.getSize();
-    
-    // Color dorado para el texto principal
+    console.log("Fuentes cargadas");
+
+    // Colores
     const goldColor = rgb(0.855, 0.647, 0.125);
-    const whiteColor = rgb(1, 1, 1);
+    const darkGreenColor = rgb(0, 0.3, 0.1);
+    
+    // Dibujar fondo
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: width,
+      height: height,
+      color: darkGreenColor,
+    });
+    
+    // Dibujar borde dorado
+    const margin = 20;
+    page.drawRectangle({
+      x: margin,
+      y: margin,
+      width: width - (margin * 2),
+      height: height - (margin * 2),
+      borderColor: goldColor,
+      borderWidth: 2,
+    });
+
+    console.log("Dibujando contenido...");
     
     // Título
     page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
       x: 50,
-      y: height - 50,
-      size: 24,
+      y: height - 80,
+      size: 28,
       font,
       color: goldColor,
-      maxWidth: width - 100,
-      lineHeight: 30,
     });
     
     // Subtítulo
     page.drawText('CONAPCOOP', {
       x: 50,
-      y: height - 100,
-      size: 20,
+      y: height - 120,
+      size: 24,
       font,
       color: goldColor,
     });
     
     // Texto del certificado
-    page.drawText(`Otorga el presente certificado de ${certificateTypeText} a:`, {
+    const text = `Otorga el presente certificado de ${certificateTypeText} a:`;
+    page.drawText(text, {
       x: 50,
-      y: height - 180,
+      y: height - 200,
       size: 16,
       font: regularFont,
-      color: whiteColor,
+      color: goldColor,
     });
     
     // Nombre del participante
     page.drawText(name.toUpperCase(), {
       x: 50,
       y: height - 250,
-      size: 32,
+      size: 36,
       font,
       color: goldColor,
     });
@@ -111,17 +137,15 @@ serve(async (req) => {
       y: height - 300,
       size: 16,
       font: regularFont,
-      color: whiteColor,
+      color: goldColor,
     });
     
     page.drawText(`"${programName}"`, {
       x: 50,
       y: height - 350,
-      size: 20,
+      size: 24,
       font,
       color: goldColor,
-      maxWidth: width - 100,
-      lineHeight: 30,
     });
     
     // Información del certificado
@@ -140,21 +164,28 @@ serve(async (req) => {
       font: regularFont,
       color: goldColor,
     });
+
+    console.log("Contenido dibujado, guardando PDF...");
     
     // Generar el PDF
     const pdfBytes = await pdfDoc.save();
-    console.log("PDF del certificado generado exitosamente");
+    console.log("PDF guardado exitosamente");
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    if (!resend) {
+      throw new Error("API key de Resend no encontrada");
+    }
+
+    console.log("Configurando email...");
 
     // En modo desarrollo/pruebas, enviamos solo a la dirección verificada
     const isDevelopment = !Deno.env.get("PRODUCTION");
     const toEmail = isDevelopment ? "fmmateo98@gmail.com" : email;
 
-    console.log("Enviando certificado por email a:", toEmail);
+    console.log("Preparando envío de email a:", toEmail);
     
     const emailResponse = await resend.emails.send({
-      from: "Certificados <onboarding@resend.dev>",
+      from: "Certificados CONAPCOOP <onboarding@resend.dev>",
       to: [toEmail],
       subject: `Tu certificado de ${certificateType} - ${programType}`,
       html: `
@@ -195,4 +226,6 @@ serve(async (req) => {
       }
     );
   }
-});
+};
+
+serve(handler);
