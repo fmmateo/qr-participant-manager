@@ -77,65 +77,91 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Agregando contenido al PDF...");
 
-    // Contenido
+    // Cargar y agregar el logo
+    const logoUrl = "https://xmnpfnrndmwxnzkmcqkv.supabase.co/storage/v1/object/public/public/logo-conapcoop.png";
+    const logoResponse = await fetch(logoUrl);
+    const logoData = await logoResponse.arrayBuffer();
+    const logoImage = await pdfDoc.embedPng(logoData);
+    
+    // Calcular dimensiones del logo para mantener proporción y centrarlo
+    const logoMaxWidth = 150;
+    const logoDims = logoImage.scale(logoMaxWidth / logoImage.width);
+    
+    page.drawImage(logoImage, {
+      x: (width - logoDims.width) / 2,
+      y: height - 120 - logoDims.height,
+      width: logoDims.width,
+      height: logoDims.height,
+    });
+
+    // Textos centrados
+    const textWidth = font.widthOfTextAtSize('CONSEJO NACIONAL DE COOPERATIVAS', 28);
     page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
-      x: 50,
-      y: height - 80,
+      x: (width - textWidth) / 2,
+      y: height - 200,
       size: 28,
       font,
       color: goldColor,
     });
 
+    const subtitleWidth = font.widthOfTextAtSize('CONAPCOOP', 24);
     page.drawText('CONAPCOOP', {
-      x: 50,
-      y: height - 120,
+      x: (width - subtitleWidth) / 2,
+      y: height - 240,
       size: 24,
       font,
       color: goldColor,
     });
 
+    const certTextWidth = regularFont.widthOfTextAtSize(`Otorga el presente certificado de ${certificateTypeText} a:`, 16);
     page.drawText(`Otorga el presente certificado de ${certificateTypeText} a:`, {
-      x: 50,
-      y: height - 200,
-      size: 16,
-      font: regularFont,
-      color: goldColor,
-    });
-
-    page.drawText(name.toUpperCase(), {
-      x: 50,
-      y: height - 250,
-      size: 36,
-      font,
-      color: goldColor,
-    });
-
-    page.drawText(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, {
-      x: 50,
+      x: (width - certTextWidth) / 2,
       y: height - 300,
       size: 16,
       font: regularFont,
       color: goldColor,
     });
 
-    page.drawText(`"${programName}"`, {
-      x: 50,
+    const nameWidth = font.widthOfTextAtSize(name.toUpperCase(), 36);
+    page.drawText(name.toUpperCase(), {
+      x: (width - nameWidth) / 2,
       y: height - 350,
+      size: 36,
+      font,
+      color: goldColor,
+    });
+
+    const programTextWidth = regularFont.widthOfTextAtSize(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, 16);
+    page.drawText(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, {
+      x: (width - programTextWidth) / 2,
+      y: height - 400,
+      size: 16,
+      font: regularFont,
+      color: goldColor,
+    });
+
+    const programNameWidth = font.widthOfTextAtSize(`"${programName}"`, 24);
+    page.drawText(`"${programName}"`, {
+      x: (width - programNameWidth) / 2,
+      y: height - 450,
       size: 24,
       font,
       color: goldColor,
     });
 
+    // Información del certificado en la parte inferior
+    const certNumberWidth = regularFont.widthOfTextAtSize(`Certificado N°: ${certificateNumber}`, 12);
     page.drawText(`Certificado N°: ${certificateNumber}`, {
-      x: 50,
+      x: (width - certNumberWidth) / 2,
       y: 100,
       size: 12,
       font: regularFont,
       color: goldColor,
     });
 
+    const dateWidth = regularFont.widthOfTextAtSize(`Fecha de emisión: ${issueDate}`, 12);
     page.drawText(`Fecha de emisión: ${issueDate}`, {
-      x: 50,
+      x: (width - dateWidth) / 2,
       y: 80,
       size: 12,
       font: regularFont,
