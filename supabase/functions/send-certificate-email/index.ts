@@ -19,7 +19,6 @@ interface CertificateEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -35,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
       issueDate 
     }: CertificateEmailRequest = await req.json();
 
-    console.log("Iniciando procesamiento de certificado:", {
+    console.log("Iniciando generación de certificado:", {
       name,
       email,
       certificateNumber,
@@ -51,37 +50,29 @@ const handler = async (req: Request): Promise<Response> => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    console.log("Creando documento PDF...");
-
-    // Crear un nuevo documento PDF
+    // Crear PDF
     const pdfDoc = await PDFDocument.create();
-    console.log("PDF creado");
-
-    // Configurar página A4 horizontal
-    const page = pdfDoc.addPage([842, 595]);
+    const page = pdfDoc.addPage([842, 595]); // A4 landscape
     const { width, height } = page.getSize();
-    console.log("Página agregada:", { width, height });
 
-    // Cargar fuentes
-    console.log("Cargando fuentes...");
+    // Fuentes
     const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-    console.log("Fuentes cargadas");
 
     // Colores
     const goldColor = rgb(0.855, 0.647, 0.125);
     const darkGreenColor = rgb(0, 0.3, 0.1);
-    
-    // Dibujar fondo
+
+    // Fondo
     page.drawRectangle({
       x: 0,
       y: 0,
-      width: width,
-      height: height,
+      width,
+      height,
       color: darkGreenColor,
     });
-    
-    // Dibujar borde dorado
+
+    // Borde
     const margin = 20;
     page.drawRectangle({
       x: margin,
@@ -92,9 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    console.log("Dibujando contenido...");
-    
-    // Título
+    // Contenido
     page.drawText('CONSEJO NACIONAL DE COOPERATIVAS', {
       x: 50,
       y: height - 80,
@@ -102,8 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
       font,
       color: goldColor,
     });
-    
-    // Subtítulo
+
     page.drawText('CONAPCOOP', {
       x: 50,
       y: height - 120,
@@ -111,18 +99,15 @@ const handler = async (req: Request): Promise<Response> => {
       font,
       color: goldColor,
     });
-    
-    // Texto del certificado
-    const text = `Otorga el presente certificado de ${certificateTypeText} a:`;
-    page.drawText(text, {
+
+    page.drawText(`Otorga el presente certificado de ${certificateTypeText} a:`, {
       x: 50,
       y: height - 200,
       size: 16,
       font: regularFont,
       color: goldColor,
     });
-    
-    // Nombre del participante
+
     page.drawText(name.toUpperCase(), {
       x: 50,
       y: height - 250,
@@ -130,8 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
       font,
       color: goldColor,
     });
-    
-    // Detalles del programa
+
     page.drawText(`Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`, {
       x: 50,
       y: height - 300,
@@ -139,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
       font: regularFont,
       color: goldColor,
     });
-    
+
     page.drawText(`"${programName}"`, {
       x: 50,
       y: height - 350,
@@ -147,8 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
       font,
       color: goldColor,
     });
-    
-    // Información del certificado
+
     page.drawText(`Certificado N°: ${certificateNumber}`, {
       x: 50,
       y: 100,
@@ -156,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
       font: regularFont,
       color: goldColor,
     });
-    
+
     page.drawText(`Fecha de emisión: ${issueDate}`, {
       x: 50,
       y: 80,
@@ -165,25 +148,23 @@ const handler = async (req: Request): Promise<Response> => {
       color: goldColor,
     });
 
-    console.log("Contenido dibujado, guardando PDF...");
-    
-    // Generar el PDF
     const pdfBytes = await pdfDoc.save();
-    console.log("PDF guardado exitosamente");
+    console.log("PDF generado exitosamente");
 
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    if (!resend) {
-      throw new Error("API key de Resend no encontrada");
+    // Verificar RESEND_API_KEY
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY no está configurada");
     }
 
-    console.log("Configurando email...");
+    const resend = new Resend(resendApiKey);
 
-    // En modo desarrollo/pruebas, enviamos solo a la dirección verificada
+    // En desarrollo, enviar a email de prueba
     const isDevelopment = !Deno.env.get("PRODUCTION");
     const toEmail = isDevelopment ? "fmmateo98@gmail.com" : email;
 
-    console.log("Preparando envío de email a:", toEmail);
-    
+    console.log("Enviando email a:", toEmail);
+
     const emailResponse = await resend.emails.send({
       from: "Certificados CONAPCOOP <onboarding@resend.dev>",
       to: [toEmail],
@@ -202,7 +183,7 @@ const handler = async (req: Request): Promise<Response> => {
       attachments: [
         {
           filename: `certificado-${certificateNumber}.pdf`,
-          content: pdfBytes
+          content: pdfBytes,
         },
       ],
     });
@@ -214,15 +195,15 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error en send-certificate-email:", error);
+    console.error("Error en la función send-certificate-email:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error instanceof Error ? error.message : "Error desconocido",
-        details: error instanceof Error ? error.stack : undefined
+        details: error instanceof Error ? error.stack : undefined,
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

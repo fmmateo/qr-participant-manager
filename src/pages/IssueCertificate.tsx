@@ -32,7 +32,7 @@ const IssueCertificate = () => {
 
     try {
       console.log('Finding participant:', email);
-      // Primero, buscar el participante por email
+      // Buscar el participante por email
       const { data: participant, error: participantError } = await supabase
         .from('participants')
         .select('id, name')
@@ -46,7 +46,6 @@ const IssueCertificate = () => {
 
       // Generar número de certificado único
       const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
-      const issueDate = new Date().toLocaleDateString('es-ES');
 
       console.log('Creating certificate:', {
         participant_id: participant.id,
@@ -78,8 +77,8 @@ const IssueCertificate = () => {
 
       console.log('Certificate created, sending email...');
 
-      // Enviar el certificado por correo electrónico
-      const emailResponse = await supabase.functions.invoke('send-certificate-email', {
+      // Enviar el certificado por correo electrónico con el payload correcto
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
         body: {
           name: participant.name,
           email: email,
@@ -87,25 +86,29 @@ const IssueCertificate = () => {
           certificateType,
           programType,
           programName,
-          issueDate,
+          issueDate: new Date().toLocaleDateString('es-ES'),
         },
       });
 
-      if (emailResponse.error) {
-        console.error('Error sending certificate email:', emailResponse.error);
+      if (emailError) {
+        console.error('Error sending certificate email:', emailError);
         throw new Error('Error al enviar el correo electrónico');
       }
 
-      console.log('Certificate email sent successfully');
+      console.log('Email response:', emailData);
 
       // Actualizar el estado de envío en la base de datos
-      await supabase
+      const { error: updateError } = await supabase
         .from('certificates')
         .update({
           sent_at: new Date().toISOString(),
           sent_email_status: 'SUCCESS',
         })
         .eq('certificate_number', certificateNumber);
+
+      if (updateError) {
+        console.error('Error updating certificate status:', updateError);
+      }
 
       toast({
         title: "¡Éxito!",
@@ -232,3 +235,4 @@ const IssueCertificate = () => {
 };
 
 export default IssueCertificate;
+
