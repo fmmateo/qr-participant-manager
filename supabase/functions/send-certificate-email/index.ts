@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -188,10 +187,10 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información adicional en la parte inferior - Ajustada más abajo
-    const bottomY = 80; // Reducido de 120 a 80 para bajar la información
+    // Información adicional en la parte inferior - Ajustada mucho más abajo
+    const bottomY = 60; // Reducido aún más para bajar toda la información
     
-    // Número de certificado
+    // Número de certificado y fecha - Lado derecho
     page.drawText(`Certificado N°: ${certificateNumber}`, {
       x: width - 300,
       y: bottomY + 40,
@@ -200,7 +199,6 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Fecha de emisión
     page.drawText(`Fecha de emisión: ${issueDate}`, {
       x: width - 300,
       y: bottomY + 20,
@@ -209,13 +207,21 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Firma digital
+    // Firma digital - Lado izquierdo y más separada
     const signatureText = "FIRMA DIGITAL CONACOOP";
     page.drawText(signatureText, {
       x: 150,
-      y: bottomY + 20,
+      y: bottomY + 40, // Alineada con el número de certificado
       size: 12,
       font: regularFont,
+      color: rgb(0.125, 0.502, 0.125),
+    });
+
+    // Añadimos una línea para la firma
+    page.drawLine({
+      start: { x: 100, y: bottomY + 30 },
+      end: { x: 300, y: bottomY + 30 },
+      thickness: 1,
       color: rgb(0.125, 0.502, 0.125),
     });
 
