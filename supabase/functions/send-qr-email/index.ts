@@ -24,28 +24,39 @@ serve(async (req) => {
   }
 
   try {
+    // Verificar API key al inicio
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("Checking Resend API key:", resendApiKey ? "Present" : "Missing");
+    
     if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
+      throw new Error("RESEND_API_KEY no está configurada");
     }
 
-    console.log("Initializing Resend with API key");
+    // Verificar método HTTP
+    if (req.method !== "POST") {
+      throw new Error(`Método HTTP ${req.method} no permitido`);
+    }
+
+    // Parsear el body de la request con manejo de errores
+    let requestData: EmailRequest;
+    try {
+      requestData = await req.json();
+      console.log("Datos recibidos:", JSON.stringify(requestData, null, 2));
+    } catch (e) {
+      throw new Error(`Error al parsear JSON: ${e.message}`);
+    }
+
+    // Validar campos requeridos
+    const { name, email, qrCode } = requestData;
+    if (!name || !email || !qrCode) {
+      throw new Error(`Campos requeridos faltantes. Recibido: ${JSON.stringify({ name, email, qrCode })}`);
+    }
+
+    // Inicializar Resend
+    console.log("Inicializando cliente Resend");
     const resend = new Resend(resendApiKey);
 
-    if (req.method !== "POST") {
-      throw new Error(`HTTP method ${req.method} not allowed`);
-    }
-
-    const requestData = await req.json();
-    console.log("Received request data:", requestData);
-
-    const { name, email, qrCode } = requestData as EmailRequest;
-
-    if (!name || !email || !qrCode) {
-      throw new Error(`Missing required fields. Received: ${JSON.stringify({ name, email, qrCode })}`);
-    }
-
-    // Datos para el QR
+    // Preparar datos del QR
     const participantData = {
       name,
       email,
@@ -53,16 +64,13 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     };
 
-    // Construir el contenido del QR
+    // Generar contenido y URL del QR
     const qrContent = JSON.stringify(participantData);
-    console.log("QR content:", qrContent);
-
-    // Generar URL del QR usando un servicio gratuito
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
-    console.log("Generated QR URL:", qrCodeUrl);
+    console.log("URL del QR generada:", qrCodeUrl);
 
-    // Enviar email
-    console.log("Attempting to send email to:", email);
+    // Intentar enviar el email
+    console.log("Intentando enviar email a:", email);
     const { data: emailResponse, error: emailError } = await resend.emails.send({
       from: "Asistencias <onboarding@resend.dev>",
       to: [email],
@@ -81,16 +89,15 @@ serve(async (req) => {
     });
 
     if (emailError) {
-      console.error("Error sending email:", emailError);
-      throw emailError;
+      console.error("Error de Resend:", emailError);
+      throw new Error(`Error al enviar email: ${emailError.message}`);
     }
 
-    console.log("Email sent successfully:", emailResponse);
-
+    console.log("Email enviado exitosamente:", emailResponse);
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email sent successfully",
+        message: "Email enviado exitosamente",
         data: emailResponse 
       }),
       {
@@ -102,16 +109,20 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in send-qr-email function:", error);
-    
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    console.error("Detailed error:", errorMessage);
+    // Mejorar el log de errores
+    console.error("Error detallado en send-qr-email:");
+    console.error("Tipo de error:", error.constructor.name);
+    console.error("Mensaje:", error.message);
+    console.error("Stack:", error.stack);
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
-        details: error instanceof Error ? error.stack : undefined
+        error: error.message || "Error desconocido",
+        details: {
+          type: error.constructor.name,
+          stack: error.stack
+        }
       }),
       {
         status: 500,
