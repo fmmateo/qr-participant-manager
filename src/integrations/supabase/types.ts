@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_super_admin: boolean | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_super_admin?: boolean | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_super_admin?: boolean | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           attendance_time: string
@@ -334,9 +361,22 @@ export type Database = {
       }
     }
     Functions: {
+      check_admin_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       cleanup_inactive_devices: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      fetch_admin_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          is_super: boolean
+          is_admin: boolean
+        }[]
       }
       refresh_attendance_summary: {
         Args: Record<PropertyKey, never>
