@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Cargar y agregar el logo
     try {
       console.log("Cargando logo...");
-      const logoUrl = "public/lovable-uploads/dac3819a-b161-4058-9f3f-8bfe0d9adfa3.png";
+      const logoUrl = "https://raw.githubusercontent.com/conacoop/assets/main/logo.png";
       const logoResponse = await fetch(logoUrl);
       
       if (!logoResponse.ok) {
