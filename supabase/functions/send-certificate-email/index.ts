@@ -55,9 +55,7 @@ serve(async (req) => {
       throw new Error("APIFlash access key no está configurada");
     }
 
-    // Crear un objeto URL temporal para el HTML
-    const tempHtmlUrl = new URL('https://temporary-html-url.com');
-    tempHtmlUrl.searchParams.set('html', `
+    const certificateHtml = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -145,17 +143,19 @@ serve(async (req) => {
         </div>
       </body>
       </html>
-    `);
+    `;
 
-    // Construir la URL de APIFlash con los parámetros correctos
+    // Crear data URL directamente con el HTML
+    const htmlDataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(certificateHtml)}`;
+
+    // Construir la URL de APIFlash
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
+    apiFlashUrl.searchParams.set('url', htmlDataUrl);
     apiFlashUrl.searchParams.set('format', 'png');
     apiFlashUrl.searchParams.set('width', '1000');
     apiFlashUrl.searchParams.set('height', '1414');
     apiFlashUrl.searchParams.set('quality', '100');
-    apiFlashUrl.searchParams.set('response_type', 'json');
-    apiFlashUrl.searchParams.set('url', tempHtmlUrl.toString());
 
     console.log("Generando imagen del certificado con APIFlash...");
     
@@ -165,17 +165,8 @@ serve(async (req) => {
       const errorText = await certificateResponse.text();
       throw new Error(`Error al generar el certificado: ${certificateResponse.statusText}. Detalles: ${errorText}`);
     }
-    
-    const certificateJson = await certificateResponse.json();
-    const imageUrl = certificateJson.url;
 
-    // Descargar la imagen generada
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(`Error al descargar la imagen del certificado: ${imageResponse.statusText}`);
-    }
-
-    const certificateBuffer = await imageResponse.arrayBuffer();
+    const certificateBuffer = await certificateResponse.arrayBuffer();
     console.log("Imagen del certificado generada exitosamente");
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
