@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -91,13 +90,11 @@ const AdminUsers = () => {
       if (!adminUsersData) return;
 
       const { data: authData } = await supabase.auth.admin.listUsers();
-      const authUsers = authData?.users as AuthUser[] | undefined;
-
-      if (!authUsers) return;
+      const users = (authData?.users || []) as AuthUser[];
 
       const combinedData = adminUsersData.map(admin => ({
         id: admin.id,
-        email: authUsers.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
+        email: users.find(user => user.id === admin.user_id)?.email || 'Usuario no encontrado',
         is_super_admin: admin.is_super_admin,
         is_active: admin.is_active,
         created_at: admin.created_at,
