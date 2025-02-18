@@ -8,9 +8,9 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Configurar el cliente con opciones optimizadas
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    persistSession: true, // Mantener la sesión entre recargas
-    autoRefreshToken: true, // Refrescar automáticamente el token
-    detectSessionInUrl: true // Detectar la sesión en la URL
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
   },
   global: {
     headers: {
@@ -20,11 +20,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   db: {
     schema: 'public'
   },
-  // Configuración específica para funciones edge
-  edgeFunction: {
-    retry: {
-      count: 3, // Intentar hasta 3 veces
-      initialDelay: 100, // Esperar 100ms antes del primer reintento
+  realtime: {
+    params: {
+      eventsPerSecond: 10
     }
   }
 });

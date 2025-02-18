@@ -23,25 +23,25 @@ export const registerAttendance = async (
   } catch {
     searchQuery = participantIdentifier;
   }
-  
-  // Usar el índice creado para email y qr_code
+
   const { data: participant, error: participantError } = await supabase
     .from('participants')
     .select('id, name, status')
-    .or(`email.eq."${searchQuery}",qr_code.eq."${searchQuery}"`)
     .eq('status', 'active')
+    .or(`email.eq.${searchQuery},qr_code.eq.${searchQuery}`)
     .single();
 
-  if (participantError) {
+  if (participantError || !participant) {
     throw new Error("Participante no encontrado o inactivo");
   }
 
-  // Usar el índice compuesto para búsqueda de asistencia
+  const sessionDate = date.toISOString().split('T')[0];
+
   const { data: existingAttendance, error: checkError } = await supabase
     .from('attendance')
     .select('id, attendance_time')
     .eq('participant_id', participant.id)
-    .eq('session_date', date.toISOString().split('T')[0])
+    .eq('session_date', sessionDate)
     .eq('status', 'valid')
     .maybeSingle();
 
@@ -58,28 +58,23 @@ export const registerAttendance = async (
     };
   }
 
-  // Insertar nuevo registro de asistencia con status
   const { error: attendanceError } = await supabase
     .from('attendance')
-    .insert([
-      {
-        participant_id: participant.id,
-        session_date: date.toISOString().split('T')[0],
-        attendance_time: new Date().toISOString(),
-        status: 'valid'
-      }
-    ]);
+    .insert({
+      participant_id: participant.id,
+      session_date: sessionDate,
+      attendance_time: new Date().toISOString(),
+      status: 'valid'
+    });
 
   if (attendanceError) {
     throw attendanceError;
   }
 
-  // Refrescar la vista materializada en segundo plano
   try {
     await supabase.rpc('refresh_attendance_summary');
   } catch (error) {
     console.error('Error al actualizar estadísticas:', error);
-    // No lanzamos el error ya que no es crítico para el registro de asistencia
   }
 
   return {
@@ -89,7 +84,6 @@ export const registerAttendance = async (
   };
 };
 
-// Función para obtener el resumen de asistencia usando la vista materializada
 export const getAttendanceSummary = async () => {
   const { data, error } = await supabase
     .from('mv_attendance_summary')
