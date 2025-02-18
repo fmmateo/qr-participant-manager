@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { ArrowLeft, Upload, UserPlus, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { sendQrEmail } from "@/services/attendanceService";
 
 const ManageParticipants = () => {
   const navigate = useNavigate();
@@ -52,7 +52,8 @@ const ManageParticipants = () => {
         const newParticipant = {
           name: formData.name,
           email: formData.email,
-          qr_code: crypto.randomUUID()
+          qr_code: crypto.randomUUID(),
+          status: 'active'
         };
 
         const { data, error } = await supabase
@@ -70,20 +71,7 @@ const ManageParticipants = () => {
 
         try {
           console.log('Sending QR email to:', data.email);
-          const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
-            body: {
-              name: data.name,
-              email: data.email,
-              qrCode: data.qr_code,
-            },
-          });
-
-          if (emailError) {
-            console.error('Error sending QR email:', emailError);
-            throw emailError;
-          }
-
-          console.log('QR email sent successfully');
+          await sendQrEmail(data.name, data.email, data.qr_code);
 
           await supabase
             .from('participants')
@@ -129,7 +117,8 @@ const ManageParticipants = () => {
           return { 
             name, 
             email,
-            qr_code: crypto.randomUUID()
+            qr_code: crypto.randomUUID(),
+            status: 'active'
           };
         });
 
@@ -164,13 +153,7 @@ const ManageParticipants = () => {
 
         for (const participant of data) {
           try {
-            await supabase.functions.invoke('send-qr-email', {
-              body: {
-                name: participant.name,
-                email: participant.email,
-                qrCode: participant.qr_code,
-              },
-            });
+            await sendQrEmail(participant.name, participant.email, participant.qr_code);
 
             await supabase
               .from('participants')
@@ -223,15 +206,7 @@ const ManageParticipants = () => {
 
       if (error) throw error;
 
-      const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
-        body: {
-          name: participant.name,
-          email: participant.email,
-          qrCode: participant.qr_code,
-        },
-      });
-
-      if (emailError) throw emailError;
+      await sendQrEmail(participant.name, participant.email, participant.qr_code);
 
       await supabase
         .from('participants')

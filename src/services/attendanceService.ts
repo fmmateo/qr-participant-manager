@@ -8,6 +8,29 @@ export interface QrData {
   timestamp: string;
 }
 
+export const sendQrEmail = async (name: string, email: string, qrCode: string) => {
+  console.log('Enviando email con QR a:', { name, email, qrCode });
+  
+  try {
+    const { error } = await supabase.functions.invoke('send-qr-email', {
+      body: { name, email, qrCode },
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (error) {
+      console.error('Error al enviar email:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error en sendQrEmail:', error);
+    throw error;
+  }
+};
+
 export const registerAttendance = async (
   participantIdentifier: string,
   date: Date
