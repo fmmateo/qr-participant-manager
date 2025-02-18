@@ -6,42 +6,45 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
 serve(async (req) => {
-  console.log("Received request to send-qr-email");
-
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
+    if (req.method !== "POST") {
+      throw new Error(`HTTP method ${req.method} not allowed`);
+    }
+
     const { name, email, qrCode } = await req.json();
     console.log("Processing request for:", { name, email, qrCode });
 
+    // Validación de campos requeridos
     if (!name || !email || !qrCode) {
-      console.error("Missing required fields:", { name, email, qrCode });
-      throw new Error("Missing required fields");
+      throw new Error("Missing required fields: name, email, or qrCode");
     }
 
-    // Validar el API key de Resend
-    const apiKey = Deno.env.get("RESEND_API_KEY");
-    if (!apiKey) {
-      console.error("RESEND_API_KEY not configured");
+    // Validación de API keys
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const qrToken = Deno.env.get("QR_CODE_GENERATOR_TOKEN");
+
+    if (!resendApiKey) {
       throw new Error("RESEND_API_KEY not configured");
     }
-    console.log("RESEND_API_KEY is configured");
 
-    // Generar QR code usando la API externa
-    console.log("Generating QR code...");
-    const qrToken = Deno.env.get("QR_CODE_GENERATOR_TOKEN");
     if (!qrToken) {
       throw new Error("QR_CODE_GENERATOR_TOKEN not configured");
     }
 
+    // Datos para el QR
     const participantData = {
       name,
       email,
@@ -49,21 +52,25 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     };
 
+    // Generar QR code
+    console.log("Generating QR code...");
     const qrResponse = await fetch(
-      `https://api.qr-code-generator.com/v1/create?access-token=${qrToken}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        frame_name: "no-frame",
-        qr_code_text: JSON.stringify(participantData),
-        image_format: "PNG",
-        qr_code_logo: "scan-me-square",
-        foreground_color: "#000000",
-        background_color: "#ffffff",
-      })
-    });
+      `https://api.qr-code-generator.com/v1/create?access-token=${qrToken}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          frame_name: "no-frame",
+          qr_code_text: JSON.stringify(participantData),
+          image_format: "PNG",
+          qr_code_logo: "scan-me-square",
+          foreground_color: "#000000",
+          background_color: "#ffffff",
+        }),
+      }
+    );
 
     if (!qrResponse.ok) {
       throw new Error(`Error generating QR code: ${qrResponse.statusText}`);
@@ -73,8 +80,8 @@ serve(async (req) => {
     const qrBase64 = btoa(String.fromCharCode(...new Uint8Array(qrImageBuffer)));
     console.log("QR code generated successfully");
 
-    console.log("Attempting to send email...");
-    // Enviar email con QR code
+    // Enviar email
+    console.log("Sending email...");
     const emailResponse = await resend.emails.send({
       from: "noreply@resend.dev",
       to: [email],
@@ -100,27 +107,32 @@ serve(async (req) => {
       ],
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully");
 
-    return new Response(JSON.stringify(emailResponse), {
-      headers: { 
-        "Content-Type": "application/json",
-        ...corsHeaders 
-      },
-    });
+    return new Response(
+      JSON.stringify({ success: true, message: "Email sent successfully" }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+      }
+    );
   } catch (error) {
     console.error("Error in send-qr-email function:", error);
     
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "An error occurred",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
         details: error instanceof Error ? error.stack : undefined
       }),
       {
         status: 500,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          ...corsHeaders 
+          ...corsHeaders
         },
       }
     );
