@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { PDFDocument, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
@@ -52,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
     const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-    // Fondo blanco
+    // Fondo blanco y borde verde
     page.drawRectangle({
       x: 0,
       y: 0,
@@ -61,7 +60,6 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(1, 1, 1),
     });
 
-    // Borde verde
     const borderMargin = 40;
     page.drawRectangle({
       x: borderMargin,
@@ -72,9 +70,9 @@ const handler = async (req: Request): Promise<Response> => {
       borderWidth: 2,
     });
 
-    // Dibuja el logo utilizando SVGPaths
+    // Logo - Ajustado más arriba
     const centerX = width / 2;
-    const centerY = height - 120;
+    const centerY = height - 80; // Movido más arriba
     const size = 100;
 
     // Círculo exterior verde
@@ -82,107 +80,105 @@ const handler = async (req: Request): Promise<Response> => {
       x: centerX,
       y: centerY,
       radius: size / 2,
-      color: rgb(0.125, 0.502, 0.125), // Verde
+      color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Círculo interior amarillo más pequeño
+    // Círculo interior amarillo
     page.drawCircle({
       x: centerX,
       y: centerY,
       radius: size / 2.5,
-      color: rgb(1, 0.843, 0), // Amarillo
+      color: rgb(1, 0.843, 0),
     });
 
-    // Flechas estilizadas como triángulos
+    // Flechas estilizadas
     const arrowSize = size / 3;
     
-    // Triángulo izquierdo
+    // Triángulos blancos
     page.drawRectangle({
       x: centerX - arrowSize - 10,
       y: centerY - arrowSize / 2,
       width: arrowSize,
       height: arrowSize,
-      color: rgb(1, 1, 1), // Blanco
+      color: rgb(1, 1, 1),
       rotate: { type: 'degrees', angle: 45 },
     });
 
-    // Triángulo derecho
     page.drawRectangle({
       x: centerX + 10,
       y: centerY - arrowSize / 2,
       width: arrowSize,
       height: arrowSize,
-      color: rgb(1, 1, 1), // Blanco
+      color: rgb(1, 1, 1),
       rotate: { type: 'degrees', angle: 45 },
     });
 
-    // Título principal
+    // Título principal - Ajustado más arriba
     const titleText = 'CONSEJO NACIONAL DE COOPERATIVAS';
     const textWidth = font.widthOfTextAtSize(titleText, 28);
     page.drawText(titleText, {
       x: (width - textWidth) / 2,
-      y: height - 220,
+      y: height - 180, // Movido más arriba
       size: 28,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Subtítulo
+    // Subtítulo CONACOOP - Ajustado más arriba
     const subtitleWidth = font.widthOfTextAtSize('CONACOOP', 24);
     page.drawText('CONACOOP', {
       x: (width - subtitleWidth) / 2,
-      y: height - 260,
+      y: height - 220, // Movido más arriba
       size: 24,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Certificado
+    // Texto del certificado - Ajustado más arriba
     const certText = `Otorga el presente certificado de ${certificateTypeText} a:`;
     const certTextWidth = regularFont.widthOfTextAtSize(certText, 16);
     page.drawText(certText, {
       x: (width - certTextWidth) / 2,
-      y: height - 320,
+      y: height - 280, // Movido más arriba
       size: 16,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Nombre del participante
+    // Nombre del participante - Ajustado más arriba
     const nameWidth = font.widthOfTextAtSize(name.toUpperCase(), 36);
     page.drawText(name.toUpperCase(), {
       x: (width - nameWidth) / 2,
-      y: height - 380,
+      y: height - 340, // Movido más arriba
       size: 36,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Tipo de programa
+    // Tipo de programa - Ajustado más arriba
     const programText = `Por su ${certificateTypeText.toLowerCase()} en el ${programType.toLowerCase()}:`;
     const programTextWidth = regularFont.widthOfTextAtSize(programText, 16);
     page.drawText(programText, {
       x: (width - programTextWidth) / 2,
-      y: height - 440,
+      y: height - 400, // Movido más arriba
       size: 16,
       font: regularFont,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Nombre del programa
+    // Nombre del programa - Ajustado más arriba
     const programNameWidth = font.widthOfTextAtSize(`"${programName}"`, 24);
     page.drawText(`"${programName}"`, {
       x: (width - programNameWidth) / 2,
-      y: height - 480,
+      y: height - 440, // Movido más arriba
       size: 24,
       font,
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Información adicional
-    const bottomY = 100;
+    // Información adicional en la parte inferior
+    const bottomY = 120; // Ajustado ligeramente más arriba
     
-    // Número de certificado
     page.drawText(`Certificado N°: ${certificateNumber}`, {
       x: width - 300,
       y: bottomY + 40,
@@ -191,7 +187,6 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Fecha
     page.drawText(`Fecha de emisión: ${issueDate}`, {
       x: width - 300,
       y: bottomY + 20,
@@ -200,9 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
       color: rgb(0.125, 0.502, 0.125),
     });
 
-    // Firma
     const signatureText = "FIRMA DIGITAL CONACOOP";
-    const signatureWidth = regularFont.widthOfTextAtSize(signatureText, 12);
     page.drawText(signatureText, {
       x: 150,
       y: bottomY + 20,
