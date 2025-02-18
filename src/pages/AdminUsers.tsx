@@ -40,45 +40,14 @@ const AdminUsers = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUserWithEmail[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    checkAccess();
+    loadAdminUsers();
   }, []);
-
-  const checkAccess = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('fetch_admin_status');
-      
-      if (error) throw error;
-      
-      if (!data?.[0]?.is_super) {
-        toast({
-          title: "Acceso Denegado",
-          description: "No tienes permisos de super administrador",
-          variant: "destructive",
-        });
-        navigate("/participants/list");
-        return;
-      }
-
-      setIsSuperAdmin(true);
-      loadAdminUsers();
-    } catch (error) {
-      console.error('Error:', error);
-      navigate("/participants/list");
-    }
-  };
 
   const loadAdminUsers = async () => {
     try {
@@ -87,10 +56,17 @@ const AdminUsers = () => {
         .from('admin_users')
         .select('*');
 
-      if (adminError) throw adminError;
+      if (adminError) {
+        if (adminError.code === 'PGRST116') {
+          navigate("/auth");
+          return;
+        }
+        throw adminError;
+      }
       
-      if (!adminUsersData) {
+      if (!adminUsersData || adminUsersData.length === 0) {
         setAdminUsers([]);
+        setLoading(false);
         return;
       }
 
@@ -111,9 +87,10 @@ const AdminUsers = () => {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los administradores",
+        description: "No tienes permiso para ver esta información",
         variant: "destructive",
       });
+      navigate("/participants/list");
     } finally {
       setLoading(false);
     }
@@ -183,8 +160,14 @@ const AdminUsers = () => {
     }
   };
 
-  if (!isSuperAdmin) {
-    return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
+        <div className="max-w-6xl mx-auto">
+          <p>Cargando...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -250,41 +233,37 @@ const AdminUsers = () => {
             </Dialog>
           </div>
 
-          {loading ? (
-            <p>Cargando administradores...</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Correo electrónico</TableHead>
-                  <TableHead>Super Admin</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Correo electrónico</TableHead>
+                <TableHead>Super Admin</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {adminUsers.map((admin) => (
+                <TableRow key={admin.id}>
+                  <TableCell className="font-medium">{admin.email}</TableCell>
+                  <TableCell>
+                    {admin.is_super_admin ? (
+                      <Shield className="h-4 w-4 text-primary" />
+                    ) : (
+                      <UserCog className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </TableCell>
+                  <TableCell>{admin.is_active ? 'Activo' : 'Inactivo'}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={admin.is_active}
+                      onCheckedChange={() => handleToggleActive(admin.id, admin.is_active)}
+                    />
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {adminUsers.map((admin) => (
-                  <TableRow key={admin.id}>
-                    <TableCell className="font-medium">{admin.email}</TableCell>
-                    <TableCell>
-                      {admin.is_super_admin ? (
-                        <Shield className="h-4 w-4 text-primary" />
-                      ) : (
-                        <UserCog className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </TableCell>
-                    <TableCell>{admin.is_active ? 'Activo' : 'Inactivo'}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={admin.is_active}
-                        onCheckedChange={() => handleToggleActive(admin.id, admin.is_active)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       </div>
     </div>
