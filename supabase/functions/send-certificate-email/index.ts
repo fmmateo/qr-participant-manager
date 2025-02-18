@@ -49,7 +49,7 @@ serve(async (req) => {
         ? 'APROBACIÓN' 
         : 'ASISTENCIA';
 
-    // Usamos el nuevo API key de APIFlash
+    // Usamos el API key de APIFlash
     const apiFlashKey = "148752fd75224b878e980dbef5fa943d";
     
     if (!apiFlashKey) {
@@ -87,38 +87,12 @@ serve(async (req) => {
 </body>
 </html>`;
 
-    // Crear una URL temporal para el HTML usando paste.ee
-    console.log("Creando URL temporal para el HTML...");
-    const pasteResponse = await fetch("https://api.paste.ee/v1/pastes", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Auth-Token": "2hRBg1BSMGXxhJzvTFMWVfqXGiJ3t94jDcGROqw4I"
-      },
-      body: JSON.stringify({
-        description: "Certificate HTML",
-        sections: [
-          {
-            name: "certificate.html",
-            syntax: "html",
-            contents: certificateHtml
-          }
-        ]
-      })
-    });
+    console.log("Generando imagen del certificado con APIFlash...");
 
-    if (!pasteResponse.ok) {
-      throw new Error("Error al crear URL temporal para el HTML");
-    }
-
-    const pasteData = await pasteResponse.json();
-    const htmlUrl = `https://paste.ee/r/${pasteData.id}`;
-    console.log("URL temporal creada:", htmlUrl);
-
-    // Construir la URL de APIFlash con el nuevo API key
+    // Usar APIFlash directamente con el HTML como source
     const apiFlashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
     apiFlashUrl.searchParams.set('access_key', apiFlashKey);
-    apiFlashUrl.searchParams.set('url', htmlUrl);
+    apiFlashUrl.searchParams.set('source', certificateHtml);
     apiFlashUrl.searchParams.set('format', 'png');
     apiFlashUrl.searchParams.set('width', '1000');
     apiFlashUrl.searchParams.set('height', '1414');
@@ -127,7 +101,6 @@ serve(async (req) => {
     apiFlashUrl.searchParams.set('fresh', 'true');
     apiFlashUrl.searchParams.set('wait_until', 'networkidle0');
 
-    console.log("Generando imagen del certificado con APIFlash...");
     console.log("URL de APIFlash:", apiFlashUrl.toString());
     
     // Obtener la imagen del certificado
