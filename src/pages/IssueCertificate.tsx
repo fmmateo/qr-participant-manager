@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Award, SendHorizontal } from "lucide-react";
+import { ArrowLeft, Award, SendHorizontal, Users, FileCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -26,6 +26,7 @@ const IssueCertificate = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingBulk, setIsSendingBulk] = useState(false);
+  const [isGeneratingFromAttendance, setIsGeneratingFromAttendance] = useState(false);
 
   const { data: programs, isLoading: isLoadingPrograms } = useQuery({
     queryKey: ['programs'],
@@ -260,6 +261,82 @@ const IssueCertificate = () => {
     }
   };
 
+  const handleGenerateFromAttendance = async () => {
+    if (!selectedProgram || !certificateType || !selectedTemplate) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un programa, tipo de certificado y plantilla",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingFromAttendance(true);
+    try {
+      const { data: participantsWithAttendance, error: attendanceError } = await supabase
+        .from('attendance')
+        .select(`
+          participant_id,
+          participants (
+            id,
+            name,
+            email,
+            status
+          )
+        `)
+        .eq('status', 'valid');
+
+      if (attendanceError) throw attendanceError;
+
+      const uniqueParticipants = Array.from(
+        new Map(
+          participantsWithAttendance
+            .filter(record => record.participants?.status === 'active')
+            .map(record => [record.participant_id, record.participants])
+        ).values()
+      );
+
+      if (uniqueParticipants.length === 0) {
+        toast({
+          title: "Sin participantes",
+          description: "No hay participantes con registros de asistencia válida",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const participant of uniqueParticipants) {
+        if (!participant) continue;
+        
+        try {
+          await issueCertificate(participant, selectedProgram, certificateType);
+          successCount++;
+        } catch (error) {
+          console.error(`Error generando certificado para ${participant.email}:`, error);
+          errorCount++;
+        }
+      }
+
+      toast({
+        title: "Proceso completado",
+        description: `${successCount} certificados generados exitosamente${errorCount > 0 ? `, ${errorCount} errores` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
+    } catch (error) {
+      console.error('Error en generación masiva:', error);
+      toast({
+        title: "Error",
+        description: "Error al generar certificados masivamente",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingFromAttendance(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8 animate-in">
@@ -277,7 +354,7 @@ const IssueCertificate = () => {
             <div className="space-y-2">
               <h1 className="text-3xl font-bold">Emitir Certificado</h1>
               <p className="text-muted-foreground">
-                Genera y envía un certificado para un participante.
+                Genera y envía certificados para los participantes.
               </p>
             </div>
 
@@ -347,9 +424,10 @@ const IssueCertificate = () => {
                 <Select
                   value={selectedTemplateId}
                   onValueChange={setSelectedTemplateId}
+                  required
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una plantilla (opcional)" />
+                    <SelectValue placeholder="Selecciona una plantilla" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -382,6 +460,17 @@ const IssueCertificate = () => {
                 >
                   {isSendingBulk ? 'Procesando...' : 'Enviar a Todos los Participantes'}
                   <SendHorizontal className="ml-2 h-4 w-4" />
+                </Button>
+
+                <Button 
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={isGeneratingFromAttendance || !selectedProgram || !certificateType || !selectedTemplate}
+                  onClick={handleGenerateFromAttendance}
+                >
+                  {isGeneratingFromAttendance ? 'Generando...' : 'Generar por Asistencia'}
+                  <FileCheck className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </form>
