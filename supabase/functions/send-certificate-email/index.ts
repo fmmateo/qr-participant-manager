@@ -23,6 +23,38 @@ serve(async (req) => {
 
     console.log('Received request with body:', body);
 
+    // Procesar la plantilla con APIFlash para agregar el texto
+    let certificateImageUrl = templateUrl
+    if (templateUrl) {
+      const apiflashUrl = new URL('https://api.apiflash.com/v1/urltoimage')
+      apiflashUrl.searchParams.append('access_key', Deno.env.get('APIFLASH_ACCESS_KEY') || '')
+      apiflashUrl.searchParams.append('url', templateUrl)
+      apiflashUrl.searchParams.append('format', 'jpeg')
+      apiflashUrl.searchParams.append('quality', '100')
+      apiflashUrl.searchParams.append('width', '1600') // Ancho fijo para mejor calidad
+      apiflashUrl.searchParams.append('height', '1200') // Alto fijo para mejor calidad
+      
+      // Agregar nombre del participante y nombre del programa
+      apiflashUrl.searchParams.append('text', `${name}\n${programName}`)
+      apiflashUrl.searchParams.append('text_color', '#000000')
+      apiflashUrl.searchParams.append('text_size', '48') // Tamaño más grande
+      apiflashUrl.searchParams.append('text_font', 'Arial')
+      apiflashUrl.searchParams.append('text_position', 'center')
+
+      try {
+        const response = await fetch(apiflashUrl.toString())
+        if (!response.ok) {
+          console.error('APIFlash error:', await response.text())
+          throw new Error('Error al procesar la imagen del certificado')
+        }
+        const data = await response.json()
+        certificateImageUrl = data.url
+      } catch (error) {
+        console.error('Error processing image with APIFlash:', error)
+        // Si hay error, usamos la plantilla original
+      }
+    }
+
     // Enviar correo electrónico usando fetch directamente a la API de Resend
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -39,7 +71,7 @@ serve(async (req) => {
           <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
           <p>Número de certificado: ${certificateNumber}</p>
           <p>Fecha de emisión: ${issueDate}</p>
-          ${templateUrl ? `<img src="${templateUrl}" alt="Certificado" style="max-width: 100%;"/>` : ''}
+          <img src="${certificateImageUrl}" alt="Certificado" style="max-width: 100%;"/>
           <p>Gracias por tu participación.</p>
         `,
       }),
