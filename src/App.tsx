@@ -1,52 +1,37 @@
 
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import ManageParticipants from "./pages/ManageParticipants";
-import RecordAttendance from "./pages/RecordAttendance";
-import IssueCertificate from "./pages/IssueCertificate";
-import Auth from "./pages/Auth";
-import ParticipantList from "./pages/ParticipantList";
-import Registration from "./pages/Registration";
-import ManagePrograms from "./pages/ManagePrograms";
-import CertificateTemplates from "./pages/CertificateTemplates";
+import Index from "@/pages/Index";
+import Auth from "@/pages/Auth";
+import NotFound from "@/pages/NotFound";
+import ManageParticipants from "@/pages/ManageParticipants";
+import ManagePrograms from "@/pages/ManagePrograms";
+import Registration from "@/pages/Registration";
+import RecordAttendance from "@/pages/RecordAttendance";
+import ParticipantList from "@/pages/ParticipantList";
+import IssueCertificate from "@/pages/IssueCertificate";
+import CertificateTemplates from "@/pages/CertificateTemplates";
+import GenerateCertificate from "@/pages/GenerateCertificate";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <div className="min-h-screen bg-background font-body">
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/participants" element={<ManageParticipants />} />
-            <Route path="/participants/list" element={<ParticipantList />} />
-            <Route path="/attendance" element={<RecordAttendance />} />
-            <Route path="/certificates" element={<IssueCertificate />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/registration" element={<Registration />} />
-            <Route path="/programs" element={<ManagePrograms />} />
-            <Route path="/certificate-templates" element={<CertificateTemplates />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </div>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/participants" element={<ManageParticipants />} />
+        <Route path="/programs" element={<ManagePrograms />} />
+        <Route path="/registration" element={<Registration />} />
+        <Route path="/attendance" element={<RecordAttendance />} />
+        <Route path="/participant-list" element={<ParticipantList />} />
+        <Route path="/certificates" element={<IssueCertificate />} />
+        <Route path="/certificate-templates" element={<CertificateTemplates />} />
+        <Route path="/certificates/generate" element={<GenerateCertificate />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster />
+    </Router>
+  );
+}
 
 export default App;
