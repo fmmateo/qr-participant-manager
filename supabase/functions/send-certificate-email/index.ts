@@ -21,29 +21,7 @@ serve(async (req) => {
       throw new Error('El campo "email" es requerido')
     }
 
-    console.log('Received request with body:', body); // Agregando log para debug
-
-    // Si hay una plantilla, procesarla con APIFlash
-    let certificateImageUrl = null
-    if (templateUrl) {
-      const apiflashUrl = new URL('https://api.apiflash.com/v1/urltoimage')
-      apiflashUrl.searchParams.append('access_key', Deno.env.get('APIFLASH_ACCESS_KEY') || '')
-      apiflashUrl.searchParams.append('url', templateUrl)
-      apiflashUrl.searchParams.append('format', 'jpeg')
-      apiflashUrl.searchParams.append('quality', '100')
-      apiflashUrl.searchParams.append('response_type', 'json')
-      
-      // Solo agregar nombre del participante y nombre del programa
-      apiflashUrl.searchParams.append('text', `${name}\n${programName}`)
-      apiflashUrl.searchParams.append('text_color', '#000000')
-      apiflashUrl.searchParams.append('text_size', '24')
-      apiflashUrl.searchParams.append('text_font', 'Arial')
-      apiflashUrl.searchParams.append('text_position', 'center')
-
-      const response = await fetch(apiflashUrl.toString())
-      const data = await response.json()
-      certificateImageUrl = data.url
-    }
+    console.log('Received request with body:', body);
 
     // Enviar correo electrónico usando fetch directamente a la API de Resend
     const resendResponse = await fetch('https://api.resend.com/emails', {
@@ -54,14 +32,14 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'Certificados <certificados@resend.dev>',
-        to: [email], // Asegurando que el email está en un array
+        to: [email],
         subject: `Tu certificado de ${programType}: ${programName}`,
         html: `
           <h1>¡Felicitaciones ${name}!</h1>
           <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
           <p>Número de certificado: ${certificateNumber}</p>
           <p>Fecha de emisión: ${issueDate}</p>
-          ${certificateImageUrl ? `<img src="${certificateImageUrl}" alt="Certificado" style="max-width: 100%;"/>` : ''}
+          ${templateUrl ? `<img src="${templateUrl}" alt="Certificado" style="max-width: 100%;"/>` : ''}
           <p>Gracias por tu participación.</p>
         `,
       }),
@@ -69,7 +47,7 @@ serve(async (req) => {
 
     if (!resendResponse.ok) {
       const errorData = await resendResponse.json()
-      console.error('Resend API error:', errorData); // Agregando log para debug
+      console.error('Resend API error:', errorData);
       throw new Error(errorData.message || 'Error al enviar el correo')
     }
 
