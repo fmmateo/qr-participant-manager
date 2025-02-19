@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { UserPlus, QrCode, Award, Users2, LogIn, UserCheck } from "lucide-react";
+import { UserPlus, QrCode, Award, Users2, LogIn, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -45,6 +45,16 @@ const Index = () => {
               <h2 className="text-2xl font-bold mb-2">Emitir Certificados</h2>
               <p className="text-muted-foreground">
                 Genera y envía certificados a los participantes
+              </p>
+            </Card>
+          </Link>
+
+          <Link to="/certificate-templates">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <FileText className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Plantillas de Certificados</h2>
+              <p className="text-muted-foreground">
+                Gestiona las plantillas para los certificados
               </p>
             </Card>
           </Link>
