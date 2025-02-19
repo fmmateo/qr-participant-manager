@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 const GenerateCertificate = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const GenerateCertificate = () => {
   const [generatedCertificateUrl, setGeneratedCertificateUrl] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [programName, setProgramName] = useState("Programa General");
 
   const { data: participantsWithAttendance } = useQuery({
     queryKey: ['participants-with-attendance'],
@@ -90,6 +92,7 @@ const GenerateCertificate = () => {
         body: {
           templateUrl: selectedTemplate.template_url,
           participantName: selectedParticipant.name,
+          programName: programName,
         },
       });
 
@@ -129,7 +132,7 @@ const GenerateCertificate = () => {
             certificate_type: 'ASISTENCIA',
             certificate_number: certificateNumber,
             template_id: selectedTemplateId,
-            program_name: 'Programa General',
+            program_name: programName,
             program_type: 'Curso',
           }
         ]);
@@ -143,7 +146,7 @@ const GenerateCertificate = () => {
           certificateNumber,
           certificateType: 'ASISTENCIA',
           programType: 'Curso',
-          programName: 'Programa General',
+          programName: programName,
           issueDate: new Date().toLocaleDateString('es-ES'),
           templateUrl: generatedCertificateUrl,
         },
@@ -253,6 +256,16 @@ const GenerateCertificate = () => {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="programName">Nombre del Programa</Label>
+                <Input
+                  id="programName"
+                  value={programName}
+                  onChange={(e) => setProgramName(e.target.value)}
+                  placeholder="Ej: Programa de Formación 2024"
+                />
               </div>
 
               <Button 

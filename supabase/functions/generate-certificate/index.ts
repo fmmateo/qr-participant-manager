@@ -9,6 +9,7 @@ const corsHeaders = {
 interface GenerateCertificateRequest {
   templateUrl: string
   participantName: string
+  programName?: string
 }
 
 serve(async (req) => {
@@ -18,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { templateUrl, participantName }: GenerateCertificateRequest = await req.json()
+    const { templateUrl, participantName, programName = "Programa General" }: GenerateCertificateRequest = await req.json()
     
     // Verificar que tenemos la API key
     const apiKey = Deno.env.get('APIFLASH_ACCESS_KEY')
@@ -29,6 +30,10 @@ serve(async (req) => {
 
     console.log('Generando certificado para:', participantName);
     console.log('Template URL:', templateUrl);
+    console.log('Programa:', programName);
+
+    // Formatear el texto para incluir tanto el nombre como el programa
+    const certificateText = `${participantName}\n\n${programName}`;
 
     // Usar APIFlash para generar el certificado
     const apiflashUrl = new URL('https://api.apiflash.com/v1/urltoimage')
@@ -40,11 +45,12 @@ serve(async (req) => {
     apiflashUrl.searchParams.append('response_type', 'json')
     
     // Agregar texto al certificado
-    apiflashUrl.searchParams.append('text', participantName)
+    apiflashUrl.searchParams.append('text', certificateText)
     apiflashUrl.searchParams.append('text_color', '#000000')
     apiflashUrl.searchParams.append('text_size', '48')
     apiflashUrl.searchParams.append('text_font', 'Arial')
     apiflashUrl.searchParams.append('text_position', 'center')
+    apiflashUrl.searchParams.append('text_align', 'center')
 
     console.log('Calling APIFlash with URL:', apiflashUrl.toString());
 
