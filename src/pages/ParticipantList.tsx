@@ -22,6 +22,52 @@ const ParticipantList = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (window.location.pathname === "/participants/list") {
+      navigate("/participant-list", { replace: true });
+      return;
+    }
+    
+    checkAuth();
+    loadParticipants();
+    loadAttendance();
+
+    const participantsChannel = supabase
+      .channel('participants-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'participants'
+        },
+        () => {
+          loadParticipants();
+        }
+      )
+      .subscribe();
+
+    const attendanceChannel = supabase
+      .channel('attendance-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance'
+        },
+        () => {
+          loadAttendance();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(participantsChannel);
+      supabase.removeChannel(attendanceChannel);
+    };
+  }, []);
+
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -85,47 +131,6 @@ const ParticipantList = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    checkAuth();
-    loadParticipants();
-    loadAttendance();
-
-    const participantsChannel = supabase
-      .channel('participants-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'participants'
-        },
-        () => {
-          loadParticipants();
-        }
-      )
-      .subscribe();
-
-    const attendanceChannel = supabase
-      .channel('attendance-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'attendance'
-        },
-        () => {
-          loadAttendance();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(attendanceChannel);
-    };
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
