@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,7 +25,6 @@ const GenerateCertificate = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  // Obtener participantes con asistencia
   const { data: participantsWithAttendance } = useQuery({
     queryKey: ['participants-with-attendance'],
     queryFn: async () => {
@@ -45,7 +43,6 @@ const GenerateCertificate = () => {
 
       if (error) throw error;
 
-      // Filtrar participantes únicos y activos
       const uniqueParticipants = Array.from(
         new Map(
           data
@@ -58,7 +55,6 @@ const GenerateCertificate = () => {
     }
   });
 
-  // Obtener plantillas
   const { data: templates } = useQuery({
     queryKey: ['certificate-templates'],
     queryFn: async () => {
@@ -90,28 +86,16 @@ const GenerateCertificate = () => {
 
     setIsGenerating(true);
     try {
-      // Usar APIFlash para generar el certificado
-      const apiflashUrl = new URL('https://api.apiflash.com/v1/urltoimage');
-      apiflashUrl.searchParams.append('access_key', Deno.env.get('APIFLASH_ACCESS_KEY') || '');
-      apiflashUrl.searchParams.append('url', selectedTemplate.template_url);
-      apiflashUrl.searchParams.append('format', 'jpeg');
-      apiflashUrl.searchParams.append('quality', '100');
-      apiflashUrl.searchParams.append('width', '1600');
-      apiflashUrl.searchParams.append('height', '1200');
-      
-      // Agregar texto al certificado
-      apiflashUrl.searchParams.append('text', selectedParticipant.name);
-      apiflashUrl.searchParams.append('text_color', '#000000');
-      apiflashUrl.searchParams.append('text_size', '48');
-      apiflashUrl.searchParams.append('text_font', 'Arial');
-      apiflashUrl.searchParams.append('text_position', 'center');
+      const { data, error } = await supabase.functions.invoke('generate-certificate', {
+        body: {
+          templateUrl: selectedTemplate.template_url,
+          participantName: selectedParticipant.name,
+        },
+      });
 
-      const response = await fetch(apiflashUrl.toString());
-      if (!response.ok) {
-        throw new Error('Error al generar el certificado');
-      }
+      if (error) throw error;
+      if (!data?.url) throw new Error('No se recibió URL del certificado');
 
-      const data = await response.json();
       setGeneratedCertificateUrl(data.url);
 
       toast({
@@ -137,7 +121,6 @@ const GenerateCertificate = () => {
     try {
       const certificateNumber = `CERT-${Date.now()}-${selectedParticipant.id.slice(0, 8)}`;
 
-      // Guardar el certificado en la base de datos
       const { error: certificateError } = await supabase
         .from('certificates')
         .insert([
@@ -153,7 +136,6 @@ const GenerateCertificate = () => {
 
       if (certificateError) throw certificateError;
 
-      // Enviar el correo electrónico
       const { error: emailError } = await supabase.functions.invoke('send-certificate-email', {
         body: {
           name: selectedParticipant.name,
