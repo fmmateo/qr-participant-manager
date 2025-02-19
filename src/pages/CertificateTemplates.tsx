@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, File, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, Upload, File, Calendar, Clock, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,6 +17,7 @@ const CertificateTemplates = () => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { data: templates, refetch } = useQuery({
     queryKey: ['certificate-templates'],
@@ -31,18 +32,9 @@ const CertificateTemplates = () => {
     }
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!templateName.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor ingresa un nombre para la plantilla",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (!file.type.includes('image/')) {
       toast({
@@ -53,14 +45,36 @@ const CertificateTemplates = () => {
       return;
     }
 
+    setSelectedFile(file);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona una imagen primero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!templateName.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa un nombre para la plantilla",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
       // Subir archivo al bucket
-      const fileName = `${Date.now()}-${file.name}`;
+      const fileName = `${Date.now()}-${selectedFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('certificate-templates')
-        .upload(fileName, file);
+        .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
@@ -83,16 +97,20 @@ const CertificateTemplates = () => {
 
       toast({
         title: "¡Éxito!",
-        description: "Plantilla subida correctamente",
+        description: "Plantilla guardada correctamente",
       });
 
       setTemplateName("");
+      setSelectedFile(null);
+      // Reset the file input
+      const fileInput = document.getElementById('template') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       refetch();
     } catch (error) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Error al subir la plantilla",
+        description: "Error al guardar la plantilla",
         variant: "destructive",
       });
     } finally {
@@ -134,15 +152,22 @@ const CertificateTemplates = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="template">Imagen de la plantilla</Label>
-                <div className="flex items-center gap-4">
+                <div className="space-y-4">
                   <Input
                     id="template"
                     type="file"
                     accept="image/*"
-                    onChange={handleFileUpload}
-                    disabled={isUploading}
+                    onChange={handleFileSelect}
                     className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                   />
+                  <Button
+                    onClick={handleSaveTemplate}
+                    disabled={isUploading || !selectedFile}
+                    className="w-full"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {isUploading ? "Guardando..." : "Guardar Plantilla"}
+                  </Button>
                 </div>
               </div>
             </div>
