@@ -29,8 +29,8 @@ serve(async (req) => {
       apiflashUrl.searchParams.append('quality', '100')
       apiflashUrl.searchParams.append('response_type', 'json')
       
-      // Agregar parámetros para el texto
-      apiflashUrl.searchParams.append('text', `${name}\n${programName}\n${certificateType}`)
+      // Solo agregar nombre del participante y nombre del programa
+      apiflashUrl.searchParams.append('text', `${name}\n${programName}`)
       apiflashUrl.searchParams.append('text_color', '#000000')
       apiflashUrl.searchParams.append('text_size', '24')
       apiflashUrl.searchParams.append('text_font', 'Arial')
