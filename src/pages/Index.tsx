@@ -59,15 +59,25 @@ const Index = () => {
             </Card>
           </Link>
 
-          <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
-            <Link to="/auth" className="flex flex-col items-center">
+          <Link to="/participant-list">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
               <Users2 className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Lista de Participantes</h2>
+              <p className="text-muted-foreground">
+                Ver y gestionar la lista de participantes
+              </p>
+            </Card>
+          </Link>
+
+          <Link to="/auth">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <LogIn className="w-12 h-12 mb-4 text-primary" />
               <h2 className="text-2xl font-bold mb-2">Acceso Administrativo</h2>
               <p className="text-muted-foreground text-center">
                 Accede al panel de administración
               </p>
-            </Link>
-          </Card>
+            </Card>
+          </Link>
         </div>
       </div>
     </div>
@@ -75,4 +85,3 @@ const Index = () => {
 };
 
 export default Index;
-
