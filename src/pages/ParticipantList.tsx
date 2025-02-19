@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen, Trash } from "lucide-react";
+import { ArrowLeft, LogOut, Eye, Users2, UserCheck, BookOpen, Trash, FileText } from "lucide-react";
 import { ParticipantTable } from "@/components/participants/ParticipantTable";
 import { AttendanceTable } from "@/components/participants/AttendanceTable";
 import type { Participant, AttendanceRecord } from "@/components/attendance/types";
@@ -345,6 +346,14 @@ const ParticipantList = () => {
             >
               <BookOpen className="mr-2 h-4 w-4" />
               Gestionar Programas
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={() => navigate("/certificate-templates")}
+              className="bg-primary"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Plantillas de Certificados
             </Button>
             <Button variant="outline" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
