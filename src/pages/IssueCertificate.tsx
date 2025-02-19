@@ -23,6 +23,7 @@ const IssueCertificate = () => {
   const [email, setEmail] = useState('');
   const [certificateType, setCertificateType] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingBulk, setIsSendingBulk] = useState(false);
 
@@ -39,7 +40,21 @@ const IssueCertificate = () => {
     }
   });
 
+  const { data: templates } = useQuery({
+    queryKey: ['certificate-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('certificate_templates')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const selectedProgram = programs?.find(p => p.id === selectedProgramId);
+  const selectedTemplate = templates?.find(t => t.id === selectedTemplateId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,15 +108,6 @@ const IssueCertificate = () => {
   const issueCertificate = async (participant: any, program: any, certType: string) => {
     const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
-    console.log('Creating certificate:', {
-      participant_id: participant.id,
-      certificate_type: certType,
-      certificate_number: certificateNumber,
-      program_type: program.type,
-      program_name: program.name,
-      issue_date: new Date().toISOString(),
-    });
-
     const { error: certificateError } = await supabase
       .from('certificates')
       .insert([
@@ -112,6 +118,7 @@ const IssueCertificate = () => {
           program_type: program.type,
           program_name: program.name,
           issue_date: new Date().toISOString(),
+          template_id: selectedTemplateId || null,
         }
       ]);
 
@@ -119,8 +126,6 @@ const IssueCertificate = () => {
       console.error('Error creating certificate:', certificateError);
       throw certificateError;
     }
-
-    console.log('Certificate created, sending email...');
 
     const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
       body: {
@@ -131,6 +136,7 @@ const IssueCertificate = () => {
         programType: program.type,
         programName: program.name,
         issueDate: new Date().toLocaleDateString('es-ES'),
+        templateUrl: selectedTemplate?.template_url,
       },
     });
 
@@ -138,8 +144,6 @@ const IssueCertificate = () => {
       console.error('Error sending certificate email:', emailError);
       throw new Error('Error al enviar el correo electrónico');
     }
-
-    console.log('Email response:', emailData);
 
     const { error: updateError } = await supabase
       .from('certificates')
@@ -311,6 +315,27 @@ const IssueCertificate = () => {
                       <SelectItem value="PARTICIPACION">Participación</SelectItem>
                       <SelectItem value="APROBACION">Aprobación</SelectItem>
                       <SelectItem value="ASISTENCIA">Asistencia</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="template">Plantilla de certificado</Label>
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={setSelectedTemplateId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una plantilla (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {templates?.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
