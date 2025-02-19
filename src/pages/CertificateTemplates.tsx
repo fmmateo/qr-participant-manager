@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, File, Calendar, Clock, Save } from "lucide-react";
+import { ArrowLeft, Upload, File, Calendar, Clock, Save, Check, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
 
 const CertificateTemplates = () => {
   const navigate = useNavigate();
@@ -46,6 +47,31 @@ const CertificateTemplates = () => {
     }
 
     setSelectedFile(file);
+  };
+
+  const handleToggleActive = async (templateId: string, currentState: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('certificate_templates')
+        .update({ is_active: !currentState })
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Éxito!",
+        description: `Plantilla ${!currentState ? 'activada' : 'desactivada'} correctamente`,
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al cambiar el estado de la plantilla",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -176,19 +202,33 @@ const CertificateTemplates = () => {
               <h2 className="text-xl font-semibold">Historial de Plantillas</h2>
               <div className="grid gap-4">
                 {templates?.map((template) => (
-                  <div key={template.id} className="flex flex-col space-y-3 p-4 border rounded-lg">
+                  <div 
+                    key={template.id} 
+                    className={`flex flex-col space-y-3 p-4 border rounded-lg ${!template.is_active ? 'opacity-60' : ''}`}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <File className="h-5 w-5 text-primary" />
                         <span className="font-medium">{template.name}</span>
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => window.open(template.template_url, '_blank')}
-                      >
-                        Ver
-                      </Button>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {template.is_active ? 'Activa' : 'Inactiva'}
+                          </span>
+                          <Switch
+                            checked={template.is_active}
+                            onCheckedChange={() => handleToggleActive(template.id, template.is_active)}
+                          />
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.open(template.template_url, '_blank')}
+                        >
+                          Ver
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
