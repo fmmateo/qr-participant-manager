@@ -36,15 +36,23 @@ serve(async (req) => {
     apiflashUrl.searchParams.append('text_font', 'Arial')
     apiflashUrl.searchParams.append('text_position', 'center')
 
+    console.log('Calling APIFlash with URL:', apiflashUrl.toString());
+
     const response = await fetch(apiflashUrl.toString())
     if (!response.ok) {
-      throw new Error('Error al generar el certificado')
+      throw new Error(`APIFlash error: ${response.status} ${response.statusText}`)
     }
 
-    const data = await response.json()
+    // Obtener la imagen como blob
+    const imageBlob = await response.blob()
     
+    // Convertir el blob a base64
+    const arrayBuffer = await imageBlob.arrayBuffer()
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const dataUrl = `data:image/jpeg;base64,${base64}`
+
     return new Response(
-      JSON.stringify({ url: data.url }),
+      JSON.stringify({ url: dataUrl }),
       { 
         headers: { 
           'Content-Type': 'application/json',
