@@ -34,7 +34,7 @@ const Auth = () => {
         description: "Has iniciado sesión correctamente.",
       });
 
-      navigate("/participants/list");
+      navigate("/participant-list"); // Corregida la ruta de redirección
     } catch (error) {
       console.error("Error:", error);
       toast({
