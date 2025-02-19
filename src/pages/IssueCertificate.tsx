@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Award } from "lucide-react";
+import { ArrowLeft, Award, SendHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -25,6 +25,7 @@ const IssueCertificate = () => {
   const [certificateType, setCertificateType] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingBulk, setIsSendingBulk] = useState(false);
 
   // Consulta para obtener los programas
   const { data: programs, isLoading: isLoadingPrograms } = useQuery({
@@ -70,67 +71,7 @@ const IssueCertificate = () => {
         throw new Error('Participante no encontrado');
       }
 
-      const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
-
-      console.log('Creating certificate:', {
-        participant_id: participant.id,
-        certificate_type: certificateType,
-        certificate_number: certificateNumber,
-        program_type: selectedProgram.type,
-        program_name: selectedProgram.name,
-        issue_date: new Date().toISOString(),
-      });
-
-      const { error: certificateError } = await supabase
-        .from('certificates')
-        .insert([
-          {
-            participant_id: participant.id,
-            certificate_type: certificateType,
-            certificate_number: certificateNumber,
-            program_type: selectedProgram.type,
-            program_name: selectedProgram.name,
-            issue_date: new Date().toISOString(),
-          }
-        ]);
-
-      if (certificateError) {
-        console.error('Error creating certificate:', certificateError);
-        throw certificateError;
-      }
-
-      console.log('Certificate created, sending email...');
-
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
-        body: {
-          name: participant.name,
-          email: email,
-          certificateNumber,
-          certificateType,
-          programType: selectedProgram.type,
-          programName: selectedProgram.name,
-          issueDate: new Date().toLocaleDateString('es-ES'),
-        },
-      });
-
-      if (emailError) {
-        console.error('Error sending certificate email:', emailError);
-        throw new Error('Error al enviar el correo electrónico');
-      }
-
-      console.log('Email response:', emailData);
-
-      const { error: updateError } = await supabase
-        .from('certificates')
-        .update({
-          sent_at: new Date().toISOString(),
-          sent_email_status: 'SUCCESS',
-        })
-        .eq('certificate_number', certificateNumber);
-
-      if (updateError) {
-        console.error('Error updating certificate status:', updateError);
-      }
+      await issueCertificate(participant, selectedProgram, certificateType);
 
       toast({
         title: "¡Éxito!",
@@ -149,6 +90,122 @@ const IssueCertificate = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const issueCertificate = async (participant: any, program: any, certType: string) => {
+    const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
+
+    console.log('Creating certificate:', {
+      participant_id: participant.id,
+      certificate_type: certType,
+      certificate_number: certificateNumber,
+      program_type: program.type,
+      program_name: program.name,
+      issue_date: new Date().toISOString(),
+    });
+
+    const { error: certificateError } = await supabase
+      .from('certificates')
+      .insert([
+        {
+          participant_id: participant.id,
+          certificate_type: certType,
+          certificate_number: certificateNumber,
+          program_type: program.type,
+          program_name: program.name,
+          issue_date: new Date().toISOString(),
+        }
+      ]);
+
+    if (certificateError) {
+      console.error('Error creating certificate:', certificateError);
+      throw certificateError;
+    }
+
+    console.log('Certificate created, sending email...');
+
+    const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
+      body: {
+        name: participant.name,
+        email: participant.email,
+        certificateNumber,
+        certificateType: certType,
+        programType: program.type,
+        programName: program.name,
+        issueDate: new Date().toLocaleDateString('es-ES'),
+      },
+    });
+
+    if (emailError) {
+      console.error('Error sending certificate email:', emailError);
+      throw new Error('Error al enviar el correo electrónico');
+    }
+
+    console.log('Email response:', emailData);
+
+    const { error: updateError } = await supabase
+      .from('certificates')
+      .update({
+        sent_at: new Date().toISOString(),
+        sent_email_status: 'SUCCESS',
+      })
+      .eq('certificate_number', certificateNumber);
+
+    if (updateError) {
+      console.error('Error updating certificate status:', updateError);
+    }
+  };
+
+  const handleBulkSend = async () => {
+    if (!selectedProgram || !certificateType) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un programa y tipo de certificado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingBulk(true);
+    try {
+      const { data: participants, error: participantsError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('status', 'active');
+
+      if (participantsError) throw participantsError;
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const participant of participants) {
+        try {
+          await issueCertificate(participant, selectedProgram, certificateType);
+          successCount++;
+        } catch (error) {
+          console.error(`Error sending certificate to ${participant.email}:`, error);
+          errorCount++;
+        }
+      }
+
+      toast({
+        title: "Proceso completado",
+        description: `${successCount} certificados enviados exitosamente${errorCount > 0 ? `, ${errorCount} errores` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
+
+      setSelectedProgramId('');
+      setCertificateType('');
+    } catch (error) {
+      console.error('Error in bulk send:', error);
+      toast({
+        title: "Error",
+        description: "Error al enviar certificados masivamente",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingBulk(false);
     }
   };
 
@@ -234,14 +291,27 @@ const IssueCertificate = () => {
                 </Select>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={isSubmitting || !selectedProgram}
-              >
-                {isSubmitting ? 'Procesando...' : 'Emitir y Enviar Certificado'}
-                <Award className="ml-2 h-4 w-4" />
-              </Button>
+              <div className="flex flex-col gap-4">
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isSubmitting || !selectedProgram}
+                >
+                  {isSubmitting ? 'Procesando...' : 'Emitir y Enviar Certificado'}
+                  <Award className="ml-2 h-4 w-4" />
+                </Button>
+
+                <Button 
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  disabled={isSendingBulk || !selectedProgram || !certificateType}
+                  onClick={handleBulkSend}
+                >
+                  {isSendingBulk ? 'Procesando...' : 'Enviar a Todos los Participantes'}
+                  <SendHorizontal className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </form>
           </div>
         </Card>
@@ -251,3 +321,4 @@ const IssueCertificate = () => {
 };
 
 export default IssueCertificate;
+
