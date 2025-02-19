@@ -13,7 +13,15 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, certificateNumber, certificateType, programType, programName, issueDate, templateUrl } = await req.json()
+    const body = await req.json()
+    const { name, email, certificateNumber, certificateType, programType, programName, issueDate, templateUrl } = body
+
+    // Validar campos requeridos
+    if (!email) {
+      throw new Error('El campo "email" es requerido')
+    }
+
+    console.log('Received request with body:', body); // Agregando log para debug
 
     // Si hay una plantilla, procesarla con APIFlash
     let certificateImageUrl = null
@@ -46,7 +54,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'Certificados <certificados@resend.dev>',
-        to: email,
+        to: [email], // Asegurando que el email está en un array
         subject: `Tu certificado de ${programType}: ${programName}`,
         html: `
           <h1>¡Felicitaciones ${name}!</h1>
@@ -61,6 +69,7 @@ serve(async (req) => {
 
     if (!resendResponse.ok) {
       const errorData = await resendResponse.json()
+      console.error('Resend API error:', errorData); // Agregando log para debug
       throw new Error(errorData.message || 'Error al enviar el correo')
     }
 

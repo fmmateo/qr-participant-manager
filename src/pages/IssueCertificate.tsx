@@ -127,17 +127,21 @@ const IssueCertificate = () => {
       throw certificateError;
     }
 
+    const emailPayload = {
+      name: participant.name,
+      email: participant.email,
+      certificateNumber,
+      certificateType: certType,
+      programType: program.type,
+      programName: program.name,
+      issueDate: new Date().toLocaleDateString('es-ES'),
+      templateUrl: selectedTemplate?.template_url,
+    };
+
+    console.log('Sending email with payload:', emailPayload);
+
     const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
-      body: {
-        name: participant.name,
-        email: participant.email,
-        certificateNumber,
-        certificateType: certType,
-        programType: program.type,
-        programName: program.name,
-        issueDate: new Date().toLocaleDateString('es-ES'),
-        templateUrl: selectedTemplate?.template_url,
-      },
+      body: emailPayload,
     });
 
     if (emailError) {
