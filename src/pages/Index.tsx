@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { UserPlus, QrCode, Award, Users2, LogIn, FileText } from "lucide-react";
+import { UserPlus, QrCode, Award, Users2, LogIn, FileText, FileCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -55,6 +55,16 @@ const Index = () => {
               <h2 className="text-2xl font-bold mb-2">Plantillas de Certificados</h2>
               <p className="text-muted-foreground">
                 Gestiona las plantillas para los certificados
+              </p>
+            </Card>
+          </Link>
+
+          <Link to="/certificates/generate">
+            <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
+              <FileCheck className="w-12 h-12 mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Generador de Certificados</h2>
+              <p className="text-muted-foreground">
+                Genera certificados basados en asistencia y plantillas
               </p>
             </Card>
           </Link>
