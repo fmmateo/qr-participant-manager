@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +26,6 @@ const IssueCertificate = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingBulk, setIsSendingBulk] = useState(false);
 
-  // Consulta para obtener los programas
   const { data: programs, isLoading: isLoadingPrograms } = useQuery({
     queryKey: ['programs'],
     queryFn: async () => {
@@ -41,7 +39,6 @@ const IssueCertificate = () => {
     }
   });
 
-  // Obtener el programa seleccionado
   const selectedProgram = programs?.find(p => p.id === selectedProgramId);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,17 +166,45 @@ const IssueCertificate = () => {
 
     setIsSendingBulk(true);
     try {
-      const { data: participants, error: participantsError } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('status', 'active');
+      const { data: participantsWithAttendance, error: attendanceError } = await supabase
+        .from('attendance')
+        .select(`
+          participant_id,
+          participants (
+            id,
+            name,
+            email,
+            status
+          )
+        `)
+        .eq('status', 'valid');
 
-      if (participantsError) throw participantsError;
+      if (attendanceError) throw attendanceError;
+
+      const uniqueParticipants = Array.from(
+        new Map(
+          participantsWithAttendance
+            .filter(record => record.participants?.status === 'active')
+            .map(record => [record.participant_id, record.participants])
+        ).values()
+      );
+
+      if (uniqueParticipants.length === 0) {
+        toast({
+          title: "Sin participantes",
+          description: "No hay participantes con registros de asistencia",
+          variant: "destructive",
+        });
+        setIsSendingBulk(false);
+        return;
+      }
 
       let successCount = 0;
       let errorCount = 0;
 
-      for (const participant of participants) {
+      for (const participant of uniqueParticipants) {
+        if (!participant) continue;
+        
         try {
           await issueCertificate(participant, selectedProgram, certificateType);
           successCount++;
@@ -321,4 +346,3 @@ const IssueCertificate = () => {
 };
 
 export default IssueCertificate;
-
