@@ -32,9 +32,6 @@ serve(async (req) => {
     console.log('Template URL:', templateUrl);
     console.log('Programa:', programName);
 
-    // Formatear el texto para incluir tanto el nombre como el programa
-    const certificateText = `${participantName}\n\n${programName}`;
-
     // Usar APIFlash para generar el certificado
     const apiflashUrl = new URL('https://api.apiflash.com/v1/urltoimage')
     apiflashUrl.searchParams.append('access_key', apiKey)
@@ -44,13 +41,23 @@ serve(async (req) => {
     apiflashUrl.searchParams.append('height', '1200')
     apiflashUrl.searchParams.append('response_type', 'json')
     
-    // Agregar texto al certificado
-    apiflashUrl.searchParams.append('text', certificateText)
-    apiflashUrl.searchParams.append('text_color', '#000000')
-    apiflashUrl.searchParams.append('text_size', '48')
-    apiflashUrl.searchParams.append('text_font', 'Arial')
-    apiflashUrl.searchParams.append('text_position', 'center')
-    apiflashUrl.searchParams.append('text_align', 'center')
+    // Configurar el nombre del participante
+    apiflashUrl.searchParams.append('text1', participantName)
+    apiflashUrl.searchParams.append('text1_color', '#000000')
+    apiflashUrl.searchParams.append('text1_size', '48')
+    apiflashUrl.searchParams.append('text1_font', 'Arial')
+    apiflashUrl.searchParams.append('text1_x', '50%')
+    apiflashUrl.searchParams.append('text1_y', '45%')
+    apiflashUrl.searchParams.append('text1_align', 'center')
+
+    // Configurar el nombre del programa
+    apiflashUrl.searchParams.append('text2', programName)
+    apiflashUrl.searchParams.append('text2_color', '#000000')
+    apiflashUrl.searchParams.append('text2_size', '36')
+    apiflashUrl.searchParams.append('text2_font', 'Arial')
+    apiflashUrl.searchParams.append('text2_x', '50%')
+    apiflashUrl.searchParams.append('text2_y', '55%')
+    apiflashUrl.searchParams.append('text2_align', 'center')
 
     console.log('Calling APIFlash with URL:', apiflashUrl.toString());
 
