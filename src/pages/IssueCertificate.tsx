@@ -56,57 +56,20 @@ const IssueCertificate = () => {
   const selectedProgram = programs?.find(p => p.id === selectedProgramId);
   const selectedTemplate = templates?.find(t => t.id === selectedTemplateId);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    if (!selectedProgram) {
-      toast({
-        title: "Error",
-        description: "Por favor selecciona un programa válido",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      console.log('Finding participant:', email);
-      const { data: participant, error: participantError } = await supabase
-        .from('participants')
-        .select('id, name')
-        .eq('email', email)
-        .single();
-
-      if (participantError) {
-        console.error('Error finding participant:', participantError);
-        throw new Error('Participante no encontrado');
-      }
-
-      await issueCertificate(participant, selectedProgram, certificateType);
-
-      toast({
-        title: "¡Éxito!",
-        description: `Certificado emitido y enviado correctamente a ${participant.name}`,
-      });
-
-      setEmail('');
-      setCertificateType('');
-      setSelectedProgramId('');
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al emitir certificado",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const issueCertificate = async (participant: any, program: any, certType: string) => {
+    if (!participant || !participant.email) {
+      console.error('Participante o email inválido:', participant);
+      throw new Error('Datos del participante inválidos');
+    }
+
     const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
+
+    console.log('Creating certificate for participant:', {
+      participantId: participant.id,
+      participantName: participant.name,
+      participantEmail: participant.email,
+      programName: program.name,
+    });
 
     const { error: certificateError } = await supabase
       .from('certificates')
@@ -159,6 +122,61 @@ const IssueCertificate = () => {
 
     if (updateError) {
       console.error('Error updating certificate status:', updateError);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      console.log('Finding participant:', email);
+      const { data: participant, error: participantError } = await supabase
+        .from('participants')
+        .select('id, name, email')
+        .eq('email', email)
+        .single();
+
+      if (participantError) {
+        console.error('Error finding participant:', participantError);
+        throw new Error('Participante no encontrado');
+      }
+
+      if (!participant) {
+        throw new Error('Participante no encontrado');
+      }
+
+      console.log('Found participant:', participant);
+
+      const selectedProgram = programs?.find(p => p.id === selectedProgramId);
+      if (!selectedProgram) {
+        toast({
+          title: "Error",
+          description: "Por favor selecciona un programa válido",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await issueCertificate(participant, selectedProgram, certificateType);
+
+      toast({
+        title: "¡Éxito!",
+        description: `Certificado emitido y enviado correctamente a ${participant.name}`,
+      });
+
+      setEmail('');
+      setCertificateType('');
+      setSelectedProgramId('');
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al emitir certificado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
