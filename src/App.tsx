@@ -12,7 +12,6 @@ import RecordAttendance from "@/pages/RecordAttendance";
 import ParticipantList from "@/pages/ParticipantList";
 import IssueCertificate from "@/pages/IssueCertificate";
 import CertificateTemplates from "@/pages/CertificateTemplates";
-import GenerateCertificate from "@/pages/GenerateCertificate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +36,6 @@ function App() {
           <Route path="/participant-list" element={<ParticipantList />} />
           <Route path="/certificates" element={<IssueCertificate />} />
           <Route path="/certificate-templates" element={<CertificateTemplates />} />
-          <Route path="/certificates/generate" element={<GenerateCertificate />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
@@ -47,3 +45,4 @@ function App() {
 }
 
 export default App;
+
