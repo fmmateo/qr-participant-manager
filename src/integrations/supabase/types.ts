@@ -215,6 +215,13 @@ export type Database = {
             referencedRelation: "certificate_templates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_certificates_template"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_templates"
+            referencedColumns: ["id"]
+          },
         ]
       }
       connected_devices: {
