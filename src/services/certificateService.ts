@@ -92,13 +92,18 @@ export const issueCertificate = async (
       throw new Error('Formato de diseño inválido');
     }
 
+    // Definir interface para el mapeo de campos
+    interface FieldMapping {
+      [key: string]: [string, readonly string[]];
+    }
+
     // Mapeo flexible de campos con variaciones comunes
-    const fieldMappings = {
-      name: [participant.name, ['name', 'participant_name', 'full_name', 'nombre', 'participante']],
-      program: [program.name, ['title', 'program', 'course', 'programa', 'curso', 'titulo']],
-      type: [program.type, ['subtitle1', 'program_type', 'type', 'tipo']],
-      certType: [certType, ['subtitle2', 'certificate_type', 'cert_type', 'tipo_certificado']],
-      date: [new Date().toLocaleDateString('es-ES'), ['date', 'issue_date', 'fecha']]
+    const fieldMappings: FieldMapping = {
+      name: [participant.name, ['name', 'participant_name', 'full_name', 'nombre', 'participante'] as const],
+      program: [program.name, ['title', 'program', 'course', 'programa', 'curso', 'titulo'] as const],
+      type: [program.type, ['subtitle1', 'program_type', 'type', 'tipo'] as const],
+      certType: [certType, ['subtitle2', 'certificate_type', 'cert_type', 'tipo_certificado'] as const],
+      date: [new Date().toLocaleDateString('es-ES'), ['date', 'issue_date', 'fecha'] as const]
     };
 
     // Actualizar todos los campos que coincidan con las variaciones conocidas
@@ -107,7 +112,7 @@ export const issueCertificate = async (
       
       // Buscar coincidencias en nuestro mapeo de campos
       for (const [, [value, variations]] of Object.entries(fieldMappings)) {
-        if (variations.some(v => lowerKey.includes(v.toLowerCase()))) {
+        if (Array.isArray(variations) && variations.some(v => lowerKey.includes(v.toLowerCase()))) {
           if (updatedDesignParams[key] && typeof updatedDesignParams[key] === 'object') {
             if ('text' in updatedDesignParams[key]) {
               updatedDesignParams[key].text = value;
