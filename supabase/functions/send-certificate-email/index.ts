@@ -1,35 +1,30 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Resend } from "npm:resend@2.0.0"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Validar claves API
     const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     if (!SIMPLECERT_API_KEY || !RESEND_API_KEY) {
+      console.error('Faltan claves API');
       throw new Error('Error de configuración: Faltan claves API necesarias');
     }
 
-    let payload;
-    try {
-      const bodyText = await req.text();
-      payload = JSON.parse(bodyText);
-      console.log('Payload recibido:', payload);
-    } catch (error) {
-      console.error('Error parsing request body:', error);
-      throw new Error('Invalid request payload');
-    }
+    // Obtener y validar payload
+    const payload = await req.json();
+    console.log('Payload recibido:', payload);
 
     const {
       name,
@@ -39,23 +34,17 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
-      templateUrl,
+      templateId, // Ahora usamos el ID directamente
+      templateUrl
     } = payload;
 
-    if (!email || !name || !certificateNumber || !programName || !templateUrl) {
+    if (!email || !name || !certificateNumber || !programName || !templateId) {
       throw new Error('Faltan campos requeridos en el payload');
     }
 
-    // Extraer template_id de manera segura
-    const template_id = templateUrl.split('/').find(part => part.length > 8);
-    if (!template_id) {
-      throw new Error('No se pudo extraer el ID del template de la URL: ' + templateUrl);
-    }
-
-    console.log('Template ID extraído:', template_id);
-
+    // Generar certificado en SimpleCert
     const simpleCertPayload = {
-      template_id,
+      template_id: templateId,
       recipient: {
         name,
         email,
@@ -72,37 +61,34 @@ serve(async (req) => {
 
     console.log('Enviando petición a SimpleCert:', simpleCertPayload);
 
-    let simpleCertResponse;
-    try {
-      simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(simpleCertPayload),
-      });
-    } catch (error) {
-      console.error('Error en la petición a SimpleCert:', error);
-      throw new Error(`Error de conexión con SimpleCert: ${error.message}`);
-    }
+    const simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(simpleCertPayload),
+    });
 
     if (!simpleCertResponse.ok) {
       const errorText = await simpleCertResponse.text();
-      console.error('SimpleCert error response:', errorText);
-      throw new Error(`Error del servicio SimpleCert: ${errorText}`);
+      console.error('Error de SimpleCert:', {
+        status: simpleCertResponse.status,
+        body: errorText
+      });
+      throw new Error(`Error de SimpleCert: ${errorText}`);
     }
 
     const certificateData = await simpleCertResponse.json();
     console.log('Respuesta de SimpleCert:', certificateData);
 
     if (!certificateData.pdf_url) {
-      throw new Error('No se recibió la URL del certificado');
+      throw new Error('No se recibió URL del certificado de SimpleCert');
     }
 
-    // Enviar el correo electrónico usando Resend
+    // Enviar email con Resend
     const resend = new Resend(RESEND_API_KEY);
-
+    
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #333; text-align: center;">¡Hola ${name}!</h1>
@@ -141,8 +127,9 @@ serve(async (req) => {
       html: emailHtml,
     });
 
-    console.log('Email enviado exitosamente:', emailResult);
+    console.log('Respuesta de Resend:', emailResult);
 
+    // Retornar respuesta exitosa
     return new Response(
       JSON.stringify({
         success: true,
@@ -150,18 +137,21 @@ serve(async (req) => {
         certificateUrl: certificateData.pdf_url,
         verificationUrl: certificateData.verification_url,
         id: certificateData.id,
+        emailId: emailResult.id,
       }),
       {
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
         },
+        status: 200,
       }
     );
 
   } catch (error) {
     console.error('Error en send-certificate-email:', error);
     
+    // Retornar error con formato consistente
     return new Response(
       JSON.stringify({ 
         success: false,
