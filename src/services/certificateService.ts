@@ -18,28 +18,21 @@ export const issueCertificate = async (
 
   const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
-  console.log('Creating certificate for participant:', {
-    participantId: participant.id,
-    participantName: participant.name,
-    participantEmail: participant.email,
-    programName: program.name,
-    templateUrl: selectedTemplate.template_url
-  });
-
   // Verificar si ya existe un certificado
-  const { data: existingCerts, error: existingCertError } = await supabase
+  const { data: existingCert, error: existingCertError } = await supabase
     .from('certificates')
     .select('*')
     .eq('participant_id', participant.id)
     .eq('program_name', program.name)
-    .eq('certificate_type', certType);
+    .eq('certificate_type', certType)
+    .maybeSingle();
 
   if (existingCertError) {
     console.error('Error al verificar certificado existente:', existingCertError);
     throw existingCertError;
   }
 
-  if (existingCerts && existingCerts.length > 0) {
+  if (existingCert) {
     throw new Error(`Ya existe un certificado de ${certType} para este programa`);
   }
 
@@ -65,58 +58,54 @@ export const issueCertificate = async (
     throw certificateError;
   }
 
-  const emailPayload = {
-    name: participant.name,
-    email: participant.email,
-    certificateNumber,
-    certificateType: certType,
-    programType: program.type,
-    programName: program.name,
-    issueDate: new Date().toLocaleDateString('es-ES'),
-    templateUrl: selectedTemplate.template_url,
-  };
+  try {
+    const emailPayload = {
+      name: participant.name,
+      email: participant.email,
+      certificateNumber,
+      certificateType: certType,
+      programType: program.type,
+      programName: program.name,
+      issueDate: new Date().toLocaleDateString('es-ES'),
+      templateUrl: selectedTemplate.template_url,
+    };
 
-  console.log('Sending email with payload:', emailPayload);
+    const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
+      'send-certificate-email',
+      {
+        body: emailPayload
+      }
+    );
 
-  const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
-    body: emailPayload
-  });
+    if (emailError || !emailResponse?.success) {
+      throw new Error(emailError?.message || emailResponse?.error || 'Error al enviar el certificado');
+    }
 
-  if (emailError) {
-    console.error('Error sending certificate email:', emailError);
-    
+    // Actualizar el certificado con los datos de la respuesta
+    await supabase
+      .from('certificates')
+      .update({
+        sent_at: new Date().toISOString(),
+        sent_email_status: 'SUCCESS',
+        image_url: emailResponse.certificateUrl,
+        verification_url: emailResponse.verificationUrl,
+        external_id: emailResponse.id
+      })
+      .eq('certificate_number', certificateNumber);
+
+    return emailResponse;
+
+  } catch (error) {
+    // Si falla el envío, actualizar el estado del certificado
     await supabase
       .from('certificates')
       .update({
         sent_email_status: 'ERROR',
-        last_error: emailError.message,
+        last_error: error.message,
         retry_count: 1
       })
       .eq('certificate_number', certificateNumber);
-    
-    throw new Error('Error al enviar el correo electrónico');
+
+    throw error;
   }
-
-  if (!emailResponse?.success) {
-    console.error('Error en la respuesta del servidor:', emailResponse);
-    throw new Error(emailResponse?.error || 'Error al procesar el certificado');
-  }
-
-  // Actualizar el certificado con los datos de la respuesta
-  const { error: updateError } = await supabase
-    .from('certificates')
-    .update({
-      sent_at: new Date().toISOString(),
-      sent_email_status: 'SUCCESS',
-      image_url: emailResponse.certificateUrl,
-      verification_url: emailResponse.verificationUrl,
-      external_id: emailResponse.id
-    })
-    .eq('certificate_number', certificateNumber);
-
-  if (updateError) {
-    console.error('Error updating certificate status:', updateError);
-  }
-
-  return emailResponse;
 };
