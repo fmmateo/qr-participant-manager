@@ -1,11 +1,10 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -15,68 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import type { Program } from "@/types/program";
 
 const Registration = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const registrationToken = searchParams.get('token');
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isValidAccess, setIsValidAccess] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
-    programId: '',
-    role: '' // Nuevo campo para el rol
-  });
-
-  useEffect(() => {
-    const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (registrationToken) {
-        setIsValidAccess(true);
-        return;
-      }
-
-      if (session) {
-        setIsAdmin(true);
-        setIsValidAccess(true);
-        return;
-      }
-
-      toast({
-        title: "Acceso Denegado",
-        description: "No tienes permiso para acceder a esta página",
-        variant: "destructive",
-      });
-      navigate('/');
-    };
-
-    checkAccess();
-  }, [registrationToken, navigate, toast]);
-
-  const { data: programs, isLoading: isLoadingPrograms } = useQuery({
-    queryKey: ['active-programs'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return data as Program[];
-    }
+    role: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidAccess) return;
     setIsSubmitting(true);
 
     try {
@@ -89,7 +38,7 @@ const Registration = () => {
           email: formData.email,
           qr_code: qrCode,
           status: 'active',
-          role: formData.role // Agregamos el rol al participante
+          role: formData.role
         }, {
           onConflict: 'email'
         })
@@ -97,16 +46,6 @@ const Registration = () => {
         .single();
 
       if (participantError) throw participantError;
-
-      const { error: registrationError } = await supabase
-        .from('registrations')
-        .insert([{
-          participant_id: participant.id,
-          program_id: formData.programId,
-          phone: formData.phone,
-        }]);
-
-      if (registrationError) throw registrationError;
 
       const { error: qrEmailError } = await supabase.functions.invoke('send-qr-email', {
         body: {
@@ -133,36 +72,21 @@ const Registration = () => {
         console.error('Error updating QR sent status:', updateError);
       }
 
-      const { error: emailError } = await supabase.functions.invoke('send-registration-email', {
-        body: {
-          name: formData.name,
-          email: formData.email,
-          programName: programs?.find(p => p.id === formData.programId)?.name,
-          role: formData.role // Incluimos el rol en el email
-        },
-      });
-
-      if (emailError) {
-        console.error('Error sending registration email:', emailError);
-      }
-
       toast({
-        title: "¡Inscripción exitosa!",
-        description: "Te hemos enviado un correo de confirmación y tu código QR personal.",
+        title: "¡Registro exitoso!",
+        description: "Te hemos enviado un correo electrónico con tu código QR personal.",
       });
 
       setFormData({
         name: '',
         email: '',
-        phone: '',
-        programId: '',
         role: ''
       });
     } catch (error) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al procesar la inscripción",
+        description: error instanceof Error ? error.message : "Error al procesar el registro",
         variant: "destructive",
       });
     } finally {
@@ -170,30 +94,15 @@ const Registration = () => {
     }
   };
 
-  if (!isValidAccess) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8">
-        {isAdmin && (
-          <Button 
-            variant="ghost" 
-            className="mb-6"
-            onClick={() => navigate('/participants/list')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al Panel
-          </Button>
-        )}
-
         <Card className="p-6">
           <div className="space-y-6">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold">Nueva Inscripción</h1>
+              <h1 className="text-3xl font-bold">Registro de Participante</h1>
               <p className="text-muted-foreground">
-                Completa el formulario para inscribirte en nuestros programas.
+                Completa el formulario para registrarte.
               </p>
             </div>
 
@@ -222,18 +131,6 @@ const Registration = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Número de teléfono</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+1234567890"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="role">Rol</Label>
                 <Select
                   value={formData.role}
@@ -251,32 +148,12 @@ const Registration = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="program">Programa</Label>
-                <Select
-                  value={formData.programId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, programId: value }))}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un programa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {programs?.map((program) => (
-                      <SelectItem key={program.id} value={program.id}>
-                        {program.name} ({program.type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={isSubmitting || isLoadingPrograms}
+                disabled={isSubmitting}
               >
-                {isSubmitting ? 'Procesando...' : 'Inscribirse'}
+                {isSubmitting ? 'Procesando...' : 'Registrarse'}
                 <Send className="ml-2 h-4 w-4" />
               </Button>
             </form>
