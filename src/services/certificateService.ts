@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 
@@ -83,6 +84,26 @@ export const issueCertificate = async (
       throw insertError;
     }
 
+    // Actualizar el diseño con la información del participante
+    const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
+    
+    // Actualizar campos específicos
+    if (updatedDesignParams.name) {
+      updatedDesignParams.name.text = participant.name;
+    }
+    if (updatedDesignParams.title) {
+      updatedDesignParams.title.text = program.name;
+    }
+    if (updatedDesignParams.subtitle1) {
+      updatedDesignParams.subtitle1.text = program.type;
+    }
+    if (updatedDesignParams.subtitle2) {
+      updatedDesignParams.subtitle2.text = certType;
+    }
+    if (updatedDesignParams.date) {
+      updatedDesignParams.date.text = new Date().toLocaleDateString('es-ES');
+    }
+
     // Construir payload para la función edge
     const emailPayload = {
       name: participant.name,
@@ -94,7 +115,7 @@ export const issueCertificate = async (
       issueDate: new Date().toLocaleDateString('es-ES'),
       templateId: selectedTemplate.id,
       templateUrl: template.template_url,
-      design: design.design_params
+      design: updatedDesignParams
     };
 
     console.log('Enviando payload a la función edge:', emailPayload);
