@@ -24,9 +24,8 @@ serve(async (req) => {
     let payload;
     try {
       const bodyText = await req.text();
-      console.log('Raw request body:', bodyText);
       payload = JSON.parse(bodyText);
-      console.log('Payload procesado:', payload);
+      console.log('Payload recibido:', payload);
     } catch (error) {
       console.error('Error parsing request body:', error);
       throw new Error('Invalid request payload');
@@ -47,21 +46,16 @@ serve(async (req) => {
       throw new Error('Faltan campos requeridos en el payload');
     }
 
-    // Extraer template_id de la URL de manera más robusta
-    const templateId = templateUrl.split('/').reduce((id, part) => {
-      // Eliminar la extensión del archivo si existe
-      const cleanPart = part.replace(/\.[^/.]+$/, "");
-      return cleanPart || id;
-    }, "");
-
-    if (!templateId) {
+    // Extraer template_id de manera segura
+    const template_id = templateUrl.split('/').find(part => part.length > 8);
+    if (!template_id) {
       throw new Error('No se pudo extraer el ID del template de la URL: ' + templateUrl);
     }
 
-    console.log('Template ID extraído:', templateId);
+    console.log('Template ID extraído:', template_id);
 
     const simpleCertPayload = {
-      template_id: templateId,
+      template_id,
       recipient: {
         name,
         email,
@@ -76,7 +70,7 @@ serve(async (req) => {
       send_email: false,
     };
 
-    console.log('Enviando petición a SimpleCert:', JSON.stringify(simpleCertPayload));
+    console.log('Enviando petición a SimpleCert:', simpleCertPayload);
 
     let simpleCertResponse;
     try {
@@ -95,31 +89,20 @@ serve(async (req) => {
 
     if (!simpleCertResponse.ok) {
       const errorText = await simpleCertResponse.text();
-      console.error('SimpleCert error response:', {
-        status: simpleCertResponse.status,
-        statusText: simpleCertResponse.statusText,
-        body: errorText
-      });
+      console.error('SimpleCert error response:', errorText);
       throw new Error(`Error del servicio SimpleCert: ${errorText}`);
     }
 
-    let certificateData;
-    try {
-      certificateData = await simpleCertResponse.json();
-      console.log('Respuesta de SimpleCert:', certificateData);
-    } catch (error) {
-      console.error('Error parsing SimpleCert response:', error);
-      throw new Error('Respuesta inválida de SimpleCert');
-    }
+    const certificateData = await simpleCertResponse.json();
+    console.log('Respuesta de SimpleCert:', certificateData);
 
     if (!certificateData.pdf_url) {
-      console.error('SimpleCert response sin PDF URL:', certificateData);
-      throw new Error('No se recibió la URL del certificado de SimpleCert');
+      throw new Error('No se recibió la URL del certificado');
     }
 
     // Enviar el correo electrónico usando Resend
     const resend = new Resend(RESEND_API_KEY);
-    
+
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #333; text-align: center;">¡Hola ${name}!</h1>
@@ -151,19 +134,14 @@ serve(async (req) => {
 
     console.log('Enviando email a:', email);
     
-    let emailResult;
-    try {
-      emailResult = await resend.emails.send({
-        from: 'CONAPCOOP <certificados@resend.dev>',
-        to: [email],
-        subject: `Tu certificado de ${certificateType} - ${programName}`,
-        html: emailHtml,
-      });
-      console.log('Respuesta de Resend:', emailResult);
-    } catch (error) {
-      console.error('Error enviando email con Resend:', error);
-      throw new Error(`Error enviando email: ${error.message}`);
-    }
+    const emailResult = await resend.emails.send({
+      from: 'CONAPCOOP <certificados@resend.dev>',
+      to: [email],
+      subject: `Tu certificado de ${certificateType} - ${programName}`,
+      html: emailHtml,
+    });
+
+    console.log('Email enviado exitosamente:', emailResult);
 
     return new Response(
       JSON.stringify({

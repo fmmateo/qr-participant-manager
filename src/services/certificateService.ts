@@ -18,63 +18,63 @@ export const issueCertificate = async (
 
   const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
-  // Verificar si ya existe un certificado - usando maybeSingle para manejar mejor el caso de no existencia
-  const { data: existingCert, error: existingCertError } = await supabase
-    .from('certificates')
-    .select('*')
-    .eq('participant_id', participant.id)
-    .eq('program_name', program.name)
-    .eq('certificate_type', certType)
-    .eq('sent_email_status', 'SUCCESS')
-    .maybeSingle();
-
-  if (existingCertError) {
-    console.error('Error al verificar certificado existente:', existingCertError);
-    throw existingCertError;
-  }
-
-  // Solo considerar como existente si el certificado fue enviado exitosamente
-  if (existingCert?.sent_email_status === 'SUCCESS') {
-    throw new Error(`Ya existe un certificado de ${certType} para este programa`);
-  }
-
-  // Si existe un certificado previo con error, lo eliminamos para crear uno nuevo
-  if (existingCert) {
+  try {
+    // Primero, eliminar cualquier certificado previo con error
     const { error: deleteError } = await supabase
       .from('certificates')
       .delete()
-      .eq('id', existingCert.id);
+      .eq('participant_id', participant.id)
+      .eq('program_name', program.name)
+      .eq('certificate_type', certType)
+      .neq('sent_email_status', 'SUCCESS');
 
     if (deleteError) {
-      console.error('Error eliminando certificado anterior:', deleteError);
-      throw deleteError;
+      console.error('Error limpiando certificados previos:', deleteError);
     }
-  }
 
-  // Crear el nuevo certificado
-  const { data: certificate, error: certificateError } = await supabase
-    .from('certificates')
-    .insert([
-      {
-        participant_id: participant.id,
-        certificate_type: certType,
-        certificate_number: certificateNumber,
-        program_type: program.type,
-        program_name: program.name,
-        issue_date: new Date().toISOString(),
-        template_id: selectedTemplate.id,
-        sent_email_status: 'PENDING'
-      }
-    ])
-    .select()
-    .single();
+    // Verificar si ya existe un certificado exitoso
+    const { data: existingCert, error: existingCertError } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('participant_id', participant.id)
+      .eq('program_name', program.name)
+      .eq('certificate_type', certType)
+      .eq('sent_email_status', 'SUCCESS')
+      .maybeSingle();
 
-  if (certificateError) {
-    console.error('Error creating certificate:', certificateError);
-    throw certificateError;
-  }
+    if (existingCertError) {
+      console.error('Error al verificar certificado existente:', existingCertError);
+      throw existingCertError;
+    }
 
-  try {
+    if (existingCert) {
+      throw new Error(`Ya existe un certificado de ${certType} para este programa`);
+    }
+
+    // Crear el nuevo certificado
+    const { data: certificate, error: certificateError } = await supabase
+      .from('certificates')
+      .insert([
+        {
+          participant_id: participant.id,
+          certificate_type: certType,
+          certificate_number: certificateNumber,
+          program_type: program.type,
+          program_name: program.name,
+          issue_date: new Date().toISOString(),
+          template_id: selectedTemplate.id,
+          sent_email_status: 'PENDING'
+        }
+      ])
+      .select()
+      .single();
+
+    if (certificateError) {
+      console.error('Error creating certificate:', certificateError);
+      throw certificateError;
+    }
+
+    // Preparar y enviar el email
     const emailPayload = {
       name: participant.name,
       email: participant.email,
@@ -91,21 +91,43 @@ export const issueCertificate = async (
     const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
       'send-certificate-email',
       {
-        body: emailPayload,
+        body: JSON.stringify(emailPayload),
       }
     );
 
     if (emailError) {
       console.error('Error calling edge function:', emailError);
+      
+      // Actualizar estado de error
+      await supabase
+        .from('certificates')
+        .update({
+          sent_email_status: 'ERROR',
+          last_error: emailError.message,
+          retry_count: 1
+        })
+        .eq('certificate_number', certificateNumber);
+
       throw new Error(`Error al enviar el correo: ${emailError.message}`);
     }
 
     if (!emailResponse?.success) {
       console.error('Edge function error:', emailResponse);
+      
+      // Actualizar estado de error
+      await supabase
+        .from('certificates')
+        .update({
+          sent_email_status: 'ERROR',
+          last_error: emailResponse?.error || 'Error desconocido',
+          retry_count: 1
+        })
+        .eq('certificate_number', certificateNumber);
+
       throw new Error(emailResponse?.error || 'Error al procesar el certificado');
     }
 
-    // Actualizar el certificado con los datos de la respuesta
+    // Actualizar el certificado con éxito
     const { error: updateError } = await supabase
       .from('certificates')
       .update({
@@ -126,21 +148,6 @@ export const issueCertificate = async (
 
   } catch (error) {
     console.error('Error in certificate process:', error);
-    
-    // Actualizar el estado del certificado en caso de error
-    const { error: updateError } = await supabase
-      .from('certificates')
-      .update({
-        sent_email_status: 'ERROR',
-        last_error: error instanceof Error ? error.message : 'Error desconocido',
-        retry_count: 1
-      })
-      .eq('certificate_number', certificateNumber);
-
-    if (updateError) {
-      console.error('Error updating certificate error status:', updateError);
-    }
-
     throw error;
   }
 };
