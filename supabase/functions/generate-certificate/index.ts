@@ -37,11 +37,13 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     if (!TEMPLATE_ID) {
-      throw new Error('TEMPLATE_ID is not defined');
+      console.error('Error: TEMPLATE_ID no está definido');
+      throw new Error('TEMPLATE_ID no está definido');
     }
 
     if (!SIMPLECERT_API_KEY) {
-      throw new Error('SIMPLECERT_API_KEY is not defined');
+      console.error('Error: SIMPLECERT_API_KEY no está definido');
+      throw new Error('SIMPLECERT_API_KEY no está definido');
     }
 
     const payload: CertificatePayload = await req.json();
@@ -63,6 +65,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
+    console.log('Configuración de SimpleCert:', {
+      apiUrl: API_URL,
+      templateId: TEMPLATE_ID,
+      // No loggeamos el API key por seguridad
+    });
+
     console.log('Enviando datos a SimpleCert:', certificateData);
 
     const response = await fetch(`${API_URL}/certificates`, {
@@ -74,14 +82,38 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify(certificateData)
     });
 
-    const result = await response.json();
+    // Log de la respuesta HTTP
+    console.log('Respuesta HTTP de SimpleCert:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    // Intentar obtener el texto de la respuesta primero
+    const responseText = await response.text();
+    console.log('Respuesta texto de SimpleCert:', responseText);
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Error al parsear la respuesta como JSON:', e);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Error de respuesta del servidor: ${responseText.substring(0, 200)}...`
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     if (!response.ok) {
       console.error('Error de SimpleCert:', result);
       return new Response(
         JSON.stringify({
           success: false,
-          error: result.message || 'Error al generar el certificado'
+          error: result.message || 'Error al generar el certificado',
+          details: result
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -104,7 +136,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
+        stack: error.stack
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
