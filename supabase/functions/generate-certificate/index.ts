@@ -30,7 +30,6 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Iniciando generación de certificado para:', data.email);
     
-    // Crear el certificado en SimpleCert
     const simpleCertPayload = {
       recipient: {
         name: data.name,
@@ -39,20 +38,36 @@ const handler = async (req: Request): Promise<Response> => {
       template_id: TEMPLATE_ID,
       custom_fields: {
         certificate_number: data.certificateNumber,
-        certificate_type: data.certificateType,
+        certificate_type: `Certificado de ${data.certificateType}`,
         program_name: data.programName,
         program_type: data.programType,
-        issue_date: data.issueDate
+        issue_date: data.issueDate,
+        // Campos adicionales específicos para cooperativa
+        organization: "Cooperativa",
+        signature_title: "Director Ejecutivo",
+        signature_date: new Date().toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
       },
       language: "es",
       send_email: true,
       email_message: `¡Felicitaciones ${data.name}!
 
-Has recibido tu certificado de ${data.certificateType} por tu participación en el programa "${data.programName}".
+Por medio de la presente, hacemos constar que has completado exitosamente el programa "${data.programName}" en nuestra cooperativa.
 
-Puedes descargar tu certificado desde el enlace adjunto.
+Este certificado de ${data.certificateType} se emite como reconocimiento a tu dedicación y compromiso.
 
-¡Gracias por tu participación!`
+Número de Certificado: ${data.certificateNumber}
+Fecha de Emisión: ${data.issueDate}
+
+El certificado está adjunto a este correo. También puedes descargarlo usando el enlace proporcionado.
+
+¡Felicitaciones por este logro!
+
+Atentamente,
+Cooperativa`
     };
 
     console.log('Enviando solicitud a SimpleCert:', JSON.stringify(simpleCertPayload, null, 2));
