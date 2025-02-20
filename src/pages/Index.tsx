@@ -19,12 +19,12 @@ const Index = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Link to="/participants">
+          <Link to="/registration">
             <Card className="p-6 hover:bg-accent transition-colors cursor-pointer">
               <UserPlus className="w-12 h-12 mb-4 text-primary" />
-              <h2 className="text-2xl font-bold mb-2">Registrar Participantes</h2>
+              <h2 className="text-2xl font-bold mb-2">Registrar Participante</h2>
               <p className="text-muted-foreground">
-                Añade nuevos participantes al sistema
+                Registra un nuevo participante al sistema
               </p>
             </Card>
           </Link>
