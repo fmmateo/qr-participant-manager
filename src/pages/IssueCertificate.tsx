@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CertificateForm } from "@/components/certificates/CertificateForm";
 import { BulkActions } from "@/components/certificates/BulkActions";
 import { issueCertificate } from "@/services/certificateService";
-import type { Program, Template, Participant } from "@/components/certificates/types";
+import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 
 const IssueCertificate = () => {
   const navigate = useNavigate();
@@ -189,10 +189,10 @@ const IssueCertificate = () => {
   };
 
   const handleGenerateFromAttendance = async () => {
-    if (!selectedProgram || !certificateType || !selectedTemplate) {
+    if (!selectedProgram || !certificateType || !selectedTemplate || !selectedDesignId) {
       toast({
         title: "Error",
-        description: "Por favor selecciona un programa, tipo de certificado y plantilla",
+        description: "Por favor selecciona un programa, tipo de certificado, plantilla y diseño",
         variant: "destructive",
       });
       return;
@@ -232,6 +232,16 @@ const IssueCertificate = () => {
         return;
       }
 
+      const { data: design, error: designError } = await supabase
+        .from('certificate_designs')
+        .select('*')
+        .eq('id', selectedDesignId)
+        .single();
+
+      if (designError || !design) {
+        throw new Error('Diseño de certificado no encontrado');
+      }
+
       let successCount = 0;
       let errorCount = 0;
 
@@ -243,7 +253,8 @@ const IssueCertificate = () => {
             participant as Participant,
             selectedProgram,
             certificateType,
-            selectedTemplate
+            selectedTemplate,
+            design as CertificateDesign
           );
           successCount++;
         } catch (error) {
@@ -261,6 +272,7 @@ const IssueCertificate = () => {
       setSelectedProgramId('');
       setCertificateType('');
       setSelectedTemplateId('');
+      setSelectedDesignId('');
     } catch (error) {
       console.error('Error en generación masiva:', error);
       toast({
