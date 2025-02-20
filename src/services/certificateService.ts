@@ -92,22 +92,32 @@ export const issueCertificate = async (
       throw new Error('Formato de diseño inválido');
     }
 
-    // Mapeo simple y directo de campos
-    if (updatedDesignParams.name) {
-      updatedDesignParams.name.text = participant.name;
-    }
-    if (updatedDesignParams.title) {
-      updatedDesignParams.title.text = program.name;
-    }
-    if (updatedDesignParams.subtitle1) {
-      updatedDesignParams.subtitle1.text = program.type;
-    }
-    if (updatedDesignParams.subtitle2) {
-      updatedDesignParams.subtitle2.text = certType;
-    }
-    if (updatedDesignParams.date) {
-      updatedDesignParams.date.text = new Date().toLocaleDateString('es-ES');
-    }
+    // Mapeo flexible de campos con variaciones comunes
+    const fieldMappings = {
+      name: [participant.name, ['name', 'participant_name', 'full_name', 'nombre', 'participante']],
+      program: [program.name, ['title', 'program', 'course', 'programa', 'curso', 'titulo']],
+      type: [program.type, ['subtitle1', 'program_type', 'type', 'tipo']],
+      certType: [certType, ['subtitle2', 'certificate_type', 'cert_type', 'tipo_certificado']],
+      date: [new Date().toLocaleDateString('es-ES'), ['date', 'issue_date', 'fecha']]
+    };
+
+    // Actualizar todos los campos que coincidan con las variaciones conocidas
+    Object.keys(updatedDesignParams).forEach(key => {
+      const lowerKey = key.toLowerCase();
+      
+      // Buscar coincidencias en nuestro mapeo de campos
+      for (const [, [value, variations]] of Object.entries(fieldMappings)) {
+        if (variations.some(v => lowerKey.includes(v.toLowerCase()))) {
+          if (updatedDesignParams[key] && typeof updatedDesignParams[key] === 'object') {
+            if ('text' in updatedDesignParams[key]) {
+              updatedDesignParams[key].text = value;
+            }
+          } else {
+            updatedDesignParams[key] = value;
+          }
+        }
+      }
+    });
 
     console.log('Parámetros de diseño actualizados:', updatedDesignParams);
 
