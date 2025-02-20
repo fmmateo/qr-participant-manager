@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Send, Upload } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from 'papaparse';
 import {
@@ -36,6 +36,7 @@ const validateParticipant = (participant: ParticipantData): string | null => {
 const Registration = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [csvParticipants, setCsvParticipants] = useState<ParticipantData[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<ParticipantData>({
     name: '',
@@ -83,10 +84,10 @@ const Registration = () => {
     if (!file) return;
 
     Papa.parse(file, {
-      complete: async (results) => {
+      complete: (results) => {
         const participants: ParticipantData[] = results.data
           .slice(1) // Skip header row
-          .filter((row: any[]) => row.length >= 3) // Ensure row has required fields
+          .filter((row: any[]) => row.length >= 3 && row[0] && row[1]) // Asegurarse que tenga nombre y email
           .map((row: any[]) => ({
             name: row[0]?.toString() || '',
             email: row[1]?.toString() || '',
@@ -94,39 +95,68 @@ const Registration = () => {
             role: 'participant' // Default role
           }));
 
-        setIsSubmitting(true);
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const participant of participants) {
-          try {
-            const validationError = validateParticipant(participant);
-            if (validationError) {
-              errorCount++;
-              continue;
-            }
-            await registerParticipant(participant);
-            successCount++;
-          } catch (error) {
-            console.error('Error registering participant:', error);
-            errorCount++;
-          }
-        }
-
+        setCsvParticipants(participants);
         toast({
-          title: "Proceso completado",
-          description: `Se registraron ${successCount} participantes exitosamente. ${errorCount} registros fallaron.`,
-          variant: errorCount > 0 ? "destructive" : "default",
+          title: "Archivo cargado",
+          description: `Se han encontrado ${participants.length} participantes en el archivo.`,
         });
-
-        setIsSubmitting(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
       },
       header: false,
       skipEmptyLines: true,
     });
+  };
+
+  const handleBulkRegistration = async () => {
+    if (csvParticipants.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay participantes para registrar. Por favor, carga un archivo CSV primero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    const total = csvParticipants.length;
+    for (let i = 0; i < total; i++) {
+      const participant = csvParticipants[i];
+      try {
+        const validationError = validateParticipant(participant);
+        if (validationError) {
+          errorCount++;
+          console.error(`Error validando participante ${participant.email}: ${validationError}`);
+          continue;
+        }
+        await registerParticipant(participant);
+        successCount++;
+
+        // Actualizar progreso
+        if ((i + 1) % 5 === 0 || i === total - 1) {
+          toast({
+            title: "Progreso",
+            description: `Procesando: ${i + 1} de ${total} participantes...`,
+          });
+        }
+      } catch (error) {
+        console.error('Error registering participant:', error);
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: "Proceso completado",
+      description: `Se registraron ${successCount} participantes exitosamente. ${errorCount} registros fallaron.`,
+      variant: errorCount > 0 ? "destructive" : "default",
+    });
+
+    setIsSubmitting(false);
+    setCsvParticipants([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const registerParticipant = async (participant: ParticipantData) => {
@@ -212,6 +242,16 @@ const Registration = () => {
                 <p className="text-sm text-muted-foreground">
                   El archivo CSV debe contener las columnas: Nombre, Email, Organización
                 </p>
+                {csvParticipants.length > 0 && (
+                  <Button
+                    onClick={handleBulkRegistration}
+                    disabled={isSubmitting}
+                    className="w-full mt-2"
+                  >
+                    {isSubmitting ? 'Procesando...' : `Registrar ${csvParticipants.length} participantes`}
+                    <Upload className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
               <div className="relative">
