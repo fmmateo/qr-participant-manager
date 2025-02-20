@@ -3,18 +3,22 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const SIMPLECERT_API_KEY = Deno.env.get("SIMPLECERT_API_KEY");
 const API_URL = "https://api.simplecert.net/v1";
-const SITE_URL = "https://fmmateo98.simplecert.net";
-const TEMPLATE_ID = Deno.env.get("TEMPLATE_ID");
+const TEMPLATE_ID = "template_default"; // Reemplaza esto con tu ID de plantilla
 
 // Datos específicos del proyecto
 const PROJECT_INFO = {
   id: "231874",
-  title: "Felix Mateo",
+  title: "Félix Mateo",
   type: "Certificado Cooperativa",
-  organization: "Cooperativa Felix Mateo"
+  organization: "Cooperativa Félix Mateo"
 };
 
-interface CertificatePayload {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface CertificateData {
   name: string;
   email: string;
   certificateNumber: string;
@@ -24,101 +28,77 @@ interface CertificatePayload {
   issueDate: string;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    if (!TEMPLATE_ID) {
-      console.error('Error: TEMPLATE_ID no está definido');
-      throw new Error('TEMPLATE_ID no está definido');
-    }
-
-    if (!SIMPLECERT_API_KEY) {
-      console.error('Error: SIMPLECERT_API_KEY no está definido');
-      throw new Error('SIMPLECERT_API_KEY no está definido');
-    }
-
-    const payload: CertificatePayload = await req.json();
-    console.log('Procesando solicitud de certificado:', payload);
-
-    const certificateData = {
-      template_id: TEMPLATE_ID,
+    const data: CertificateData = await req.json();
+    
+    console.log('Iniciando generación de certificado para:', data.email);
+    console.log('Proyecto:', PROJECT_INFO.id);
+    
+    const simpleCertPayload = {
       recipient: {
-        name: payload.name,
-        email: payload.email,
+        name: data.name,
+        email: data.email
       },
+      template_id: TEMPLATE_ID,
       custom_fields: {
-        certificate_number: `${PROJECT_INFO.id}-${payload.certificateNumber}`,
-        program_name: payload.programName,
-        program_type: payload.programType,
-        certificate_type: payload.certificateType,
-        issue_date: payload.issueDate,
-        organization: PROJECT_INFO.organization
-      }
+        certificate_number: `${PROJECT_INFO.id}-${data.certificateNumber}`,
+        certificate_type: `Certificado de ${data.certificateType}`,
+        program_name: data.programName,
+        program_type: data.programType,
+        issue_date: data.issueDate,
+        project_id: PROJECT_INFO.id,
+        project_title: PROJECT_INFO.title,
+        organization: PROJECT_INFO.organization,
+        signature_title: "Director Ejecutivo",
+        signature_date: new Date().toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      },
+      language: "es",
+      send_email: true,
+      email_message: `¡Felicitaciones ${data.name}!
+
+Por medio de la presente, ${PROJECT_INFO.organization} hace constar que has completado exitosamente el programa "${data.programName}".
+
+Este certificado de ${data.certificateType} se emite como reconocimiento a tu dedicación y compromiso dentro del proyecto "${PROJECT_INFO.title}" (ID: ${PROJECT_INFO.id}).
+
+Número de Certificado: ${PROJECT_INFO.id}-${data.certificateNumber}
+Fecha de Emisión: ${data.issueDate}
+
+El certificado está adjunto a este correo. También puedes descargarlo usando el enlace proporcionado.
+
+¡Felicitaciones por este logro!
+
+Atentamente,
+${PROJECT_INFO.organization}
+Proyecto: ${PROJECT_INFO.title}`
     };
 
-    console.log('Configuración de SimpleCert:', {
-      apiUrl: API_URL,
-      templateId: TEMPLATE_ID,
-      // No loggeamos el API key por seguridad
-    });
-
-    console.log('Enviando datos a SimpleCert:', certificateData);
+    console.log('Enviando solicitud a SimpleCert:', JSON.stringify(simpleCertPayload, null, 2));
 
     const response = await fetch(`${API_URL}/certificates`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SIMPLECERT_API_KEY}`
+        'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(certificateData)
+      body: JSON.stringify(simpleCertPayload)
     });
 
-    // Log de la respuesta HTTP
-    console.log('Respuesta HTTP de SimpleCert:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
-
-    // Intentar obtener el texto de la respuesta primero
-    const responseText = await response.text();
-    console.log('Respuesta texto de SimpleCert:', responseText);
-
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (e) {
-      console.error('Error al parsear la respuesta como JSON:', e);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Error de respuesta del servidor: ${responseText.substring(0, 200)}...`
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     if (!response.ok) {
-      console.error('Error de SimpleCert:', result);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: result.message || 'Error al generar el certificado',
-          details: result
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const error = await response.json();
+      console.error('Error de SimpleCert:', error);
+      throw new Error(error.message || 'Error al generar el certificado');
     }
 
+    const result = await response.json();
     console.log('Respuesta exitosa de SimpleCert:', result);
 
     return new Response(
@@ -126,20 +106,28 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         certificateId: result.id,
         certificateUrl: result.pdf_url,
-        verificationUrl: `${SITE_URL}/verify/${result.id}`
+        verificationUrl: result.verification_url,
+        projectInfo: PROJECT_INFO
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
     );
 
   } catch (error) {
-    console.error('Error en el procesamiento:', error);
+    console.error('Error en generate-certificate:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
+      JSON.stringify({ 
+        success: false, 
         error: error.message,
-        stack: error.stack
+        details: error instanceof Error ? error.stack : undefined,
+        projectInfo: PROJECT_INFO
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
     );
   }
 };
