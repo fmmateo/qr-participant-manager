@@ -1,9 +1,8 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const SIMPLECERT_API_KEY = Deno.env.get("SIMPLECERT_API_KEY");
 const API_URL = "https://api.simplecert.net/v1";
-const TEMPLATE_ID = "template_default"; // Reemplaza esto con tu ID de plantilla
+const TEMPLATE_ID = Deno.env.get("TEMPLATE_ID") || "template_default"; // Ahora obtenemos el ID de las variables de entorno
 
 // Datos específicos del proyecto
 const PROJECT_INFO = {
