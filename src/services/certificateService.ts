@@ -16,6 +16,26 @@ export const issueCertificate = async (
     throw new Error('Debe seleccionar una plantilla de certificado');
   }
 
+  // Verificar si la plantilla está bloqueada o inactiva
+  const { data: template, error: templateError } = await supabase
+    .from('certificate_templates')
+    .select('is_locked, is_active')
+    .eq('id', selectedTemplate.id)
+    .single();
+
+  if (templateError) {
+    console.error('Error al verificar plantilla:', templateError);
+    throw new Error('Error al verificar el estado de la plantilla');
+  }
+
+  if (template?.is_locked) {
+    throw new Error('La plantilla seleccionada está bloqueada');
+  }
+
+  if (!template?.is_active) {
+    throw new Error('La plantilla seleccionada no está activa');
+  }
+
   const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
   try {
@@ -73,19 +93,22 @@ export const issueCertificate = async (
       programType: program.type,
       programName: program.name,
       issueDate: new Date().toLocaleDateString('es-ES'),
-      templateId: selectedTemplate.id, // Enviamos el ID directamente
+      templateId: selectedTemplate.id,
       templateUrl: selectedTemplate.template_url
     };
+
+    console.log('Enviando payload a la función edge:', emailPayload);
 
     // Llamar a la función edge
     const { data: response, error: edgeError } = await supabase.functions.invoke(
       'send-certificate-email',
       {
-        body: emailPayload // Supabase serializa automáticamente
+        body: emailPayload
       }
     );
 
     if (edgeError || !response?.success) {
+      console.error('Error en la función edge:', edgeError || response?.error);
       await supabase
         .from('certificates')
         .update({
