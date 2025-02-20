@@ -19,6 +19,7 @@ const IssueCertificate = () => {
   const [certificateType, setCertificateType] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedDesignId, setSelectedDesignId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingBulk, setIsSendingBulk] = useState(false);
   const [isGeneratingFromAttendance, setIsGeneratingFromAttendance] = useState(false);
@@ -58,11 +59,10 @@ const IssueCertificate = () => {
     setIsSubmitting(true);
 
     try {
-      if (!selectedTemplate || !selectedProgram || !certificateType) {
+      if (!selectedTemplate || !selectedProgram || !certificateType || !selectedDesignId) {
         throw new Error('Por favor completa todos los campos requeridos');
       }
 
-      console.log('Finding participant:', email);
       const { data: participant, error: participantError } = await supabase
         .from('participants')
         .select('id, name, email')
@@ -74,11 +74,22 @@ const IssueCertificate = () => {
         throw new Error('Participante no encontrado');
       }
 
+      const { data: design } = await supabase
+        .from('certificate_designs')
+        .select('*')
+        .eq('id', selectedDesignId)
+        .single();
+
+      if (!design) {
+        throw new Error('Diseño de certificado no encontrado');
+      }
+
       const emailResponse = await issueCertificate(
         participant as Participant,
         selectedProgram,
         certificateType,
-        selectedTemplate
+        selectedTemplate,
+        design
       );
 
       toast({
@@ -90,6 +101,7 @@ const IssueCertificate = () => {
       setCertificateType('');
       setSelectedProgramId('');
       setSelectedTemplateId('');
+      setSelectedDesignId('');
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -279,6 +291,8 @@ const IssueCertificate = () => {
               setCertificateType={setCertificateType}
               selectedTemplateId={selectedTemplateId}
               setSelectedTemplateId={setSelectedTemplateId}
+              selectedDesignId={selectedDesignId}
+              setSelectedDesignId={setSelectedDesignId}
               isSubmitting={isSubmitting}
               programs={programs}
               templates={templates}

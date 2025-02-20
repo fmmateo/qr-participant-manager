@@ -105,6 +105,47 @@ export type Database = {
         }
         Relationships: []
       }
+      certificate_designs: {
+        Row: {
+          created_at: string
+          design_params: Json
+          format: string
+          id: string
+          metadata: Json | null
+          name: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          design_params: Json
+          format?: string
+          id?: string
+          metadata?: Json | null
+          name: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          design_params?: Json
+          format?: string
+          id?: string
+          metadata?: Json | null
+          name?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_designs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificate_templates: {
         Row: {
           created_at: string

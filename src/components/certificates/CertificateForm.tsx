@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Program, Template } from "./types";
+import { CertificateDesignSelect } from "./CertificateDesignSelect";
 
 interface CertificateFormProps {
   email: string;
@@ -22,6 +23,8 @@ interface CertificateFormProps {
   setCertificateType: (type: string) => void;
   selectedTemplateId: string;
   setSelectedTemplateId: (id: string) => void;
+  selectedDesignId: string;
+  setSelectedDesignId: (id: string) => void;
   isSubmitting: boolean;
   programs?: Program[];
   templates?: Template[];
@@ -38,6 +41,8 @@ export const CertificateForm = ({
   setCertificateType,
   selectedTemplateId,
   setSelectedTemplateId,
+  selectedDesignId,
+  setSelectedDesignId,
   isSubmitting,
   programs,
   templates,
@@ -128,10 +133,15 @@ export const CertificateForm = ({
         </Select>
       </div>
 
+      <CertificateDesignSelect
+        selectedDesignId={selectedDesignId}
+        setSelectedDesignId={setSelectedDesignId}
+      />
+
       <Button 
         type="submit" 
         className="w-full"
-        disabled={isSubmitting || !selectedProgramId || !selectedTemplateId}
+        disabled={isSubmitting || !selectedProgramId || !selectedTemplateId || !selectedDesignId}
       >
         {isSubmitting ? 'Procesando...' : 'Emitir y Enviar Certificado'}
         <Award className="ml-2 h-4 w-4" />

@@ -1,12 +1,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Program, Template, Participant } from "@/components/certificates/types";
+import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 
 export const issueCertificate = async (
   participant: Participant,
   program: Program,
   certType: string,
-  selectedTemplate: Template
+  selectedTemplate: Template,
+  design: CertificateDesign
 ) => {
   if (!participant || !participant.email) {
     throw new Error('Datos del participante inválidos');
@@ -14,6 +15,10 @@ export const issueCertificate = async (
 
   if (!selectedTemplate?.id) {
     throw new Error('Debe seleccionar una plantilla de certificado válida');
+  }
+
+  if (!design?.id) {
+    throw new Error('Debe seleccionar un diseño de certificado válido');
   }
 
   try {
@@ -89,14 +94,15 @@ export const issueCertificate = async (
       programName: program.name,
       issueDate: new Date().toLocaleDateString('es-ES'),
       templateId: selectedTemplate.id,
-      templateUrl: template.template_url
+      templateUrl: template.template_url,
+      design: design.design_params
     };
 
     console.log('Enviando payload a la función edge:', emailPayload);
 
     // Llamar a la función edge
     const { data: response, error: edgeError } = await supabase.functions.invoke(
-      'send-certificate-email',
+      'generate-certificate',
       {
         body: emailPayload
       }
