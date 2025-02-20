@@ -45,58 +45,61 @@ serve(async (req) => {
     const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
-    if (!SIMPLECERT_API_KEY) {
-      console.error('SIMPLECERT_API_KEY no está configurada');
-      throw new Error('Error de configuración del servicio de certificados');
-    }
-
-    if (!RESEND_API_KEY) {
-      console.error('RESEND_API_KEY no está configurada');
-      throw new Error('Error de configuración del servicio de correo');
+    if (!SIMPLECERT_API_KEY || !RESEND_API_KEY) {
+      console.error('API Keys:', { SIMPLECERT_API_KEY: !!SIMPLECERT_API_KEY, RESEND_API_KEY: !!RESEND_API_KEY });
+      throw new Error('Error de configuración: Faltan claves API necesarias');
     }
 
     console.log('Generating certificate for:', { name, email, certificateNumber, programName });
 
+    const designId = templateUrl.split('/').pop(); // Extraer el ID del template de la URL
+    if (!designId) {
+      throw new Error('ID de diseño no válido');
+    }
+
     // Crear el certificado usando SimpleCert
-    const simpleCertResponse = await fetch('https://app.simplecert.net/api/v1/certificate', {
+    const simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        design_id: templateUrl, // Usa la URL de la plantilla como design_id
+        template_id: designId,
         recipient: {
           name: name,
           email: email,
         },
-        custom_fields: {
+        metadata: {
           certificate_number: certificateNumber,
           program_name: programName,
           program_type: programType,
           certificate_type: certificateType,
           issue_date: issueDate,
         },
-        send_email: false, // Manejaremos el envío de correo nosotros para personalizar el mensaje
+        send_email: false,
       }),
     });
 
+    console.log('SimpleCert API response status:', simpleCertResponse.status);
+    
     if (!simpleCertResponse.ok) {
       const errorText = await simpleCertResponse.text();
-      console.error('SimpleCert error:', errorText);
+      console.error('SimpleCert error response:', errorText);
       throw new Error(`Error al generar el certificado: ${errorText}`);
     }
 
     const certificateData = await simpleCertResponse.json();
     console.log('Certificate generation response:', certificateData);
 
-    if (!certificateData.certificate_url) {
+    if (!certificateData.pdf_url) {
+      console.error('SimpleCert response missing PDF URL:', certificateData);
       throw new Error('No se recibió URL del certificado generado');
     }
 
     const resend = new Resend(RESEND_API_KEY);
 
-    console.log('Sending email with certificate:', certificateData.certificate_url);
+    console.log('Sending email with certificate:', certificateData.pdf_url);
 
     // Enviar correo electrónico usando Resend
     const { data: emailData, error: emailError } = await resend.emails.send({
@@ -109,7 +112,7 @@ serve(async (req) => {
         <p>Número de certificado: ${certificateNumber}</p>
         <p>Fecha de emisión: ${issueDate}</p>
         <p>Puedes acceder a tu certificado en el siguiente enlace:</p>
-        <p><a href="${certificateData.certificate_url}" target="_blank">Ver certificado</a></p>
+        <p><a href="${certificateData.pdf_url}" target="_blank">Ver certificado</a></p>
         <p>También puedes verificar la autenticidad de tu certificado en:</p>
         <p><a href="${certificateData.verification_url}" target="_blank">Verificar certificado</a></p>
         <p>Gracias por tu participación.</p>
@@ -129,7 +132,7 @@ serve(async (req) => {
         message: 'Certificado enviado correctamente',
         data: emailData,
         id: certificateData.id,
-        certificateUrl: certificateData.certificate_url,
+        certificateUrl: certificateData.pdf_url,
         verificationUrl: certificateData.verification_url
       }), 
       {
