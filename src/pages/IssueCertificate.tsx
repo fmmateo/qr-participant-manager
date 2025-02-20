@@ -74,13 +74,13 @@ const IssueCertificate = () => {
         throw new Error('Participante no encontrado');
       }
 
-      const { data: design } = await supabase
+      const { data: design, error: designError } = await supabase
         .from('certificate_designs')
         .select('*')
         .eq('id', selectedDesignId)
         .single();
 
-      if (!design) {
+      if (designError || !design) {
         throw new Error('Diseño de certificado no encontrado');
       }
 
@@ -89,7 +89,7 @@ const IssueCertificate = () => {
         selectedProgram,
         certificateType,
         selectedTemplate,
-        design
+        design as CertificateDesign
       );
 
       toast({
@@ -115,10 +115,10 @@ const IssueCertificate = () => {
   };
 
   const handleBulkSend = async () => {
-    if (!selectedProgram || !certificateType || !selectedTemplate) {
+    if (!selectedProgram || !certificateType || !selectedTemplate || !selectedDesignId) {
       toast({
         title: "Error",
-        description: "Por favor selecciona un programa, tipo de certificado y plantilla",
+        description: "Por favor selecciona un programa, tipo de certificado, plantilla y diseño",
         variant: "destructive",
       });
       return;
@@ -137,6 +137,16 @@ const IssueCertificate = () => {
         throw new Error('No hay participantes activos');
       }
 
+      const { data: design, error: designError } = await supabase
+        .from('certificate_designs')
+        .select('*')
+        .eq('id', selectedDesignId)
+        .single();
+
+      if (designError || !design) {
+        throw new Error('Diseño de certificado no encontrado');
+      }
+
       let successCount = 0;
       let errorCount = 0;
 
@@ -146,7 +156,8 @@ const IssueCertificate = () => {
             participant as Participant,
             selectedProgram,
             certificateType,
-            selectedTemplate
+            selectedTemplate,
+            design as CertificateDesign
           );
           successCount++;
         } catch (error) {
@@ -164,6 +175,7 @@ const IssueCertificate = () => {
       setSelectedProgramId('');
       setCertificateType('');
       setSelectedTemplateId('');
+      setSelectedDesignId('');
     } catch (error) {
       console.error('Error in bulk send:', error);
       toast({

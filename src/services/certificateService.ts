@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 

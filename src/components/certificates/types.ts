@@ -1,4 +1,6 @@
 
+import type { Json } from "@/integrations/supabase/types";
+
 export interface Program {
   id: string;
   name: string;
@@ -21,20 +23,10 @@ export interface CertificateDesign {
   id: string;
   name: string;
   format: string;
-  metadata?: string;
-  design_params: {
-    params: Array<{
-      name: string;
-      text?: string;
-      color?: string;
-      backgroundColor?: string;
-      borderColor?: string;
-      borderWidth?: string;
-      borderRadius?: string;
-      opacity?: number;
-      imageUrl?: string;
-    }>;
-  };
+  metadata: Json;
+  design_params: Json;
   template_id?: string;
+  created_at: string;
+  updated_at: string;
 }
 
