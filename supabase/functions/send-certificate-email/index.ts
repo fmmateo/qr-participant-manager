@@ -25,6 +25,9 @@ serve(async (req) => {
   }
 
   try {
+    const payload = await req.json() as CertificateEmailPayload;
+    console.log('Received request with payload:', payload);
+
     const {
       name,
       email,
@@ -34,18 +37,7 @@ serve(async (req) => {
       programName,
       issueDate,
       templateUrl,
-    } = await req.json() as CertificateEmailPayload;
-
-    console.log('Received request with payload:', {
-      name,
-      email,
-      certificateNumber,
-      certificateType,
-      programType,
-      programName,
-      issueDate,
-      templateUrl
-    });
+    } = payload;
 
     if (!email || !name || !certificateNumber || !programName || !templateUrl) {
       throw new Error('Faltan campos requeridos');
@@ -98,9 +90,9 @@ serve(async (req) => {
     console.log('Sending email with certificate:', certificateData.url);
 
     // Enviar correo electrónico usando Resend
-    const emailResponse = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'Certificados <certificados@resend.dev>',
-      to: email,
+      to: [email],
       subject: `Tu certificado de ${certificateType} - ${programName}`,
       html: `
         <h1>¡Hola ${name}!</h1>
@@ -112,13 +104,18 @@ serve(async (req) => {
       `,
     });
 
-    console.log('Email sent successfully:', emailResponse);
+    if (emailError) {
+      console.error('Error sending email:', emailError);
+      throw emailError;
+    }
+
+    console.log('Email sent successfully:', emailData);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Certificado enviado correctamente',
-        data: emailResponse 
+        data: emailData
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
