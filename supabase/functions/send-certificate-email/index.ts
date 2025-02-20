@@ -35,6 +35,7 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
+      templateUrl,
     } = payload;
 
     if (!email || !name || !certificateNumber || !programName) {
@@ -45,11 +46,13 @@ serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     if (!SIMPLECERT_API_KEY) {
-      throw new Error('SIMPLECERT_API_KEY no está configurada');
+      console.error('SIMPLECERT_API_KEY no está configurada');
+      throw new Error('Error de configuración del servicio de certificados');
     }
 
     if (!RESEND_API_KEY) {
-      throw new Error('RESEND_API_KEY no está configurada');
+      console.error('RESEND_API_KEY no está configurada');
+      throw new Error('Error de configuración del servicio de correo');
     }
 
     console.log('Generating certificate for:', { name, email, certificateNumber, programName });
@@ -62,6 +65,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        design_id: templateUrl, // Usa la URL de la plantilla como design_id
         recipient: {
           name: name,
           email: email,
@@ -124,6 +128,7 @@ serve(async (req) => {
         success: true,
         message: 'Certificado enviado correctamente',
         data: emailData,
+        id: certificateData.id,
         certificateUrl: certificateData.certificate_url,
         verificationUrl: certificateData.verification_url
       }), 
