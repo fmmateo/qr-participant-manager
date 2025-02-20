@@ -54,8 +54,6 @@ serve(async (req) => {
       throw new Error('DYNAPICTURES_TOKEN no está configurado');
     }
 
-    const resend = new Resend(RESEND_API_KEY);
-
     console.log('Generating certificate for:', { name, email, certificateNumber, programName });
 
     // Generar URL de Dynapictures con los parámetros dinámicos
@@ -87,11 +85,13 @@ serve(async (req) => {
       throw new Error('No se recibió URL del certificado generado');
     }
 
+    const resend = new Resend(RESEND_API_KEY);
+
     console.log('Sending email with certificate:', certificateData.url);
 
     // Enviar correo electrónico usando Resend
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: 'Certificados <certificados@resend.dev>',
+      from: 'CONAPCOOP <certificados@resend.dev>',
       to: [email],
       subject: `Tu certificado de ${certificateType} - ${programName}`,
       html: `
@@ -115,7 +115,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: 'Certificado enviado correctamente',
-        data: emailData
+        data: emailData,
+        certificateUrl: certificateData.url
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -72,7 +72,19 @@ const IssueCertificate = () => {
       programName: program.name,
     });
 
-    const { error: certificateError } = await supabase
+    const { data: existingCert } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('participant_id', participant.id)
+      .eq('program_name', program.name)
+      .eq('certificate_type', certType)
+      .maybeSingle();
+
+    if (existingCert) {
+      throw new Error(`Ya existe un certificado de ${certType} para este programa`);
+    }
+
+    const { data: certificate, error: certificateError } = await supabase
       .from('certificates')
       .insert([
         {
@@ -84,7 +96,9 @@ const IssueCertificate = () => {
           issue_date: new Date().toISOString(),
           template_id: selectedTemplateId || null,
         }
-      ]);
+      ])
+      .select()
+      .single();
 
     if (certificateError) {
       console.error('Error creating certificate:', certificateError);
@@ -104,25 +118,43 @@ const IssueCertificate = () => {
 
     console.log('Sending email with payload:', emailPayload);
 
-    const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
-      body: emailPayload,
-    });
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
+        body: emailPayload,
+      });
 
-    if (emailError) {
-      console.error('Error sending certificate email:', emailError);
-      throw new Error('Error al enviar el correo electrónico');
-    }
+      if (emailError) {
+        console.error('Error sending certificate email:', emailError);
+        
+        await supabase
+          .from('certificates')
+          .update({
+            sent_email_status: 'ERROR',
+            last_error: emailError.message,
+            retry_count: 1
+          })
+          .eq('certificate_number', certificateNumber);
+        
+        throw new Error('Error al enviar el correo electrónico');
+      }
 
-    const { error: updateError } = await supabase
-      .from('certificates')
-      .update({
-        sent_at: new Date().toISOString(),
-        sent_email_status: 'SUCCESS',
-      })
-      .eq('certificate_number', certificateNumber);
+      const { error: updateError } = await supabase
+        .from('certificates')
+        .update({
+          sent_at: new Date().toISOString(),
+          sent_email_status: 'SUCCESS',
+          image_url: emailData?.certificateUrl
+        })
+        .eq('certificate_number', certificateNumber);
 
-    if (updateError) {
-      console.error('Error updating certificate status:', updateError);
+      if (updateError) {
+        console.error('Error updating certificate status:', updateError);
+      }
+
+      return emailData;
+    } catch (error) {
+      console.error('Error en el proceso de envío:', error);
+      throw error;
     }
   };
 
