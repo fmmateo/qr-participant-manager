@@ -30,7 +30,8 @@ const Registration = () => {
     name: '',
     email: '',
     phone: '',
-    programId: ''
+    programId: '',
+    role: '' // Nuevo campo para el rol
   });
 
   useEffect(() => {
@@ -87,7 +88,8 @@ const Registration = () => {
           name: formData.name,
           email: formData.email,
           qr_code: qrCode,
-          status: 'active'
+          status: 'active',
+          role: formData.role // Agregamos el rol al participante
         }, {
           onConflict: 'email'
         })
@@ -106,7 +108,6 @@ const Registration = () => {
 
       if (registrationError) throw registrationError;
 
-      // Enviamos el email con el código QR
       const { error: qrEmailError } = await supabase.functions.invoke('send-qr-email', {
         body: {
           name: formData.name,
@@ -120,7 +121,6 @@ const Registration = () => {
         throw qrEmailError;
       }
 
-      // Actualizamos el estado del envío del QR
       const { error: updateError } = await supabase
         .from('participants')
         .update({
@@ -133,12 +133,12 @@ const Registration = () => {
         console.error('Error updating QR sent status:', updateError);
       }
 
-      // Enviamos el email de confirmación de registro
       const { error: emailError } = await supabase.functions.invoke('send-registration-email', {
         body: {
           name: formData.name,
           email: formData.email,
-          programName: programs?.find(p => p.id === formData.programId)?.name
+          programName: programs?.find(p => p.id === formData.programId)?.name,
+          role: formData.role // Incluimos el rol en el email
         },
       });
 
@@ -155,7 +155,8 @@ const Registration = () => {
         name: '',
         email: '',
         phone: '',
-        programId: ''
+        programId: '',
+        role: ''
       });
     } catch (error) {
       console.error('Error:', error);
@@ -230,6 +231,24 @@ const Registration = () => {
                   placeholder="+1234567890"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Rol</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tu rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="participant">Participante</SelectItem>
+                    <SelectItem value="facilitator">Facilitador</SelectItem>
+                    <SelectItem value="guest">Invitado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
