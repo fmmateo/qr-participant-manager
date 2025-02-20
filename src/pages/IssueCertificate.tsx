@@ -48,6 +48,7 @@ const IssueCertificate = () => {
       const { data, error } = await supabase
         .from('certificate_templates')
         .select('*')
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -64,6 +65,10 @@ const IssueCertificate = () => {
       throw new Error('Datos del participante inválidos');
     }
 
+    if (!selectedTemplate) {
+      throw new Error('Debe seleccionar una plantilla de certificado');
+    }
+
     const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
     console.log('Creating certificate for participant:', {
@@ -71,9 +76,11 @@ const IssueCertificate = () => {
       participantName: participant.name,
       participantEmail: participant.email,
       programName: program.name,
+      templateUrl: selectedTemplate.template_url
     });
 
-    const { data: existingCert } = await supabase
+    // Verificar si ya existe un certificado
+    const { data: existingCert, error: existingCertError } = await supabase
       .from('certificates')
       .select('*')
       .eq('participant_id', participant.id)
@@ -81,10 +88,16 @@ const IssueCertificate = () => {
       .eq('certificate_type', certType)
       .maybeSingle();
 
+    if (existingCertError) {
+      console.error('Error al verificar certificado existente:', existingCertError);
+      throw existingCertError;
+    }
+
     if (existingCert) {
       throw new Error(`Ya existe un certificado de ${certType} para este programa`);
     }
 
+    // Crear el certificado en la base de datos
     const { data: certificate, error: certificateError } = await supabase
       .from('certificates')
       .insert([
@@ -95,7 +108,7 @@ const IssueCertificate = () => {
           program_type: program.type,
           program_name: program.name,
           issue_date: new Date().toISOString(),
-          template_id: selectedTemplateId || null,
+          template_id: selectedTemplate.id,
         }
       ])
       .select()
@@ -114,51 +127,52 @@ const IssueCertificate = () => {
       programType: program.type,
       programName: program.name,
       issueDate: new Date().toLocaleDateString('es-ES'),
-      templateUrl: selectedTemplate?.template_url,
+      templateUrl: selectedTemplate.template_url,
     };
 
     console.log('Sending email with payload:', emailPayload);
 
-    try {
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
-        body: emailPayload,
-      });
+    const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-certificate-email', {
+      body: emailPayload
+    });
 
-      if (emailError) {
-        console.error('Error sending certificate email:', emailError);
-        
-        await supabase
-          .from('certificates')
-          .update({
-            sent_email_status: 'ERROR',
-            last_error: emailError.message,
-            retry_count: 1
-          })
-          .eq('certificate_number', certificateNumber);
-        
-        throw new Error('Error al enviar el correo electrónico');
-      }
-
-      const { error: updateError } = await supabase
+    if (emailError) {
+      console.error('Error sending certificate email:', emailError);
+      
+      await supabase
         .from('certificates')
         .update({
-          sent_at: new Date().toISOString(),
-          sent_email_status: 'SUCCESS',
-          image_url: emailData?.certificateUrl,
-          verification_url: emailData?.verificationUrl,
-          external_id: emailData?.id
+          sent_email_status: 'ERROR',
+          last_error: emailError.message,
+          retry_count: 1
         })
         .eq('certificate_number', certificateNumber);
-
-      if (updateError) {
-        console.error('Error updating certificate status:', updateError);
-      }
-
-      return emailData;
-    } catch (error) {
-      console.error('Error en el proceso de envío:', error);
-      throw error;
+      
+      throw new Error('Error al enviar el correo electrónico');
     }
+
+    if (!emailResponse?.success) {
+      console.error('Error en la respuesta del servidor:', emailResponse);
+      throw new Error(emailResponse?.error || 'Error al procesar el certificado');
+    }
+
+    // Actualizar el certificado con los datos de la respuesta
+    const { error: updateError } = await supabase
+      .from('certificates')
+      .update({
+        sent_at: new Date().toISOString(),
+        sent_email_status: 'SUCCESS',
+        image_url: emailResponse.certificateUrl,
+        verification_url: emailResponse.verificationUrl,
+        external_id: emailResponse.id
+      })
+      .eq('certificate_number', certificateNumber);
+
+    if (updateError) {
+      console.error('Error updating certificate status:', updateError);
+    }
+
+    return emailResponse;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,6 +180,18 @@ const IssueCertificate = () => {
     setIsSubmitting(true);
 
     try {
+      if (!selectedTemplate) {
+        throw new Error('Debe seleccionar una plantilla de certificado');
+      }
+
+      if (!selectedProgram) {
+        throw new Error('Debe seleccionar un programa');
+      }
+
+      if (!certificateType) {
+        throw new Error('Debe seleccionar un tipo de certificado');
+      }
+
       console.log('Finding participant:', email);
       const { data: participant, error: participantError } = await supabase
         .from('participants')
@@ -173,28 +199,12 @@ const IssueCertificate = () => {
         .eq('email', email)
         .single();
 
-      if (participantError) {
+      if (participantError || !participant) {
         console.error('Error finding participant:', participantError);
         throw new Error('Participante no encontrado');
       }
 
-      if (!participant) {
-        throw new Error('Participante no encontrado');
-      }
-
-      console.log('Found participant:', participant);
-
-      const selectedProgram = programs?.find(p => p.id === selectedProgramId);
-      if (!selectedProgram) {
-        toast({
-          title: "Error",
-          description: "Por favor selecciona un programa válido",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await issueCertificate(participant, selectedProgram, certificateType);
+      const emailResponse = await issueCertificate(participant, selectedProgram, certificateType);
 
       toast({
         title: "¡Éxito!",
@@ -480,7 +490,7 @@ const IssueCertificate = () => {
                 <Button 
                   type="submit" 
                   className="w-full"
-                  disabled={isSubmitting || !selectedProgram}
+                  disabled={isSubmitting || !selectedProgram || !selectedTemplate}
                 >
                   {isSubmitting ? 'Procesando...' : 'Emitir y Enviar Certificado'}
                   <Award className="ml-2 h-4 w-4" />
@@ -490,7 +500,7 @@ const IssueCertificate = () => {
                   type="button"
                   variant="secondary"
                   className="w-full"
-                  disabled={isSendingBulk || !selectedProgram || !certificateType}
+                  disabled={isSendingBulk || !selectedProgram || !certificateType || !selectedTemplate}
                   onClick={handleBulkSend}
                 >
                   {isSendingBulk ? 'Procesando...' : 'Enviar a Todos los Participantes'}
