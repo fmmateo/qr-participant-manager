@@ -87,24 +87,32 @@ export const issueCertificate = async (
     // Clonar y actualizar el diseño con la información del participante
     const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
     
-    // Actualizar campos específicos
+    // Actualizar campos específicos asegurándose de que existan
+    const fieldMappings = {
+      name: participant.name,
+      participant_name: participant.name, // Alternativa común
+      full_name: participant.name, // Otra alternativa
+      title: program.name,
+      program: program.name,
+      subtitle1: program.type,
+      program_type: program.type,
+      subtitle2: certType,
+      certificate_type: certType,
+      date: new Date().toLocaleDateString('es-ES'),
+      issue_date: new Date().toLocaleDateString('es-ES'),
+    };
+
+    // Actualizar todos los campos que coincidan con nuestras claves conocidas
     Object.keys(updatedDesignParams).forEach(key => {
-      switch(key) {
-        case 'name':
-          updatedDesignParams[key].text = participant.name;
-          break;
-        case 'title':
-          updatedDesignParams[key].text = program.name;
-          break;
-        case 'subtitle1':
-          updatedDesignParams[key].text = program.type;
-          break;
-        case 'subtitle2':
-          updatedDesignParams[key].text = certType;
-          break;
-        case 'date':
-          updatedDesignParams[key].text = new Date().toLocaleDateString('es-ES');
-          break;
+      const lowerKey = key.toLowerCase();
+      for (const [mappingKey, value] of Object.entries(fieldMappings)) {
+        if (lowerKey.includes(mappingKey.toLowerCase())) {
+          if (updatedDesignParams[key] && typeof updatedDesignParams[key] === 'object') {
+            updatedDesignParams[key].text = value;
+          } else {
+            updatedDesignParams[key] = value;
+          }
+        }
       }
     });
 
