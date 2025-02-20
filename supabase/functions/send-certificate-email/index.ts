@@ -35,58 +35,64 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
-      templateUrl,
     } = payload;
 
-    if (!email || !name || !certificateNumber || !programName || !templateUrl) {
+    if (!email || !name || !certificateNumber || !programName) {
       throw new Error('Faltan campos requeridos');
     }
 
+    const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const DYNAPICTURES_TOKEN = Deno.env.get('DYNAPICTURES_TOKEN');
+
+    if (!SIMPLECERT_API_KEY) {
+      throw new Error('SIMPLECERT_API_KEY no está configurada');
+    }
 
     if (!RESEND_API_KEY) {
       throw new Error('RESEND_API_KEY no está configurada');
     }
 
-    if (!DYNAPICTURES_TOKEN) {
-      throw new Error('DYNAPICTURES_TOKEN no está configurado');
+    console.log('Generating certificate for:', { name, email, certificateNumber, programName });
+
+    // Crear el certificado usando SimpleCert
+    const simpleCertResponse = await fetch('https://app.simplecert.net/api/v1/certificate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: {
+          name: name,
+          email: email,
+        },
+        custom_fields: {
+          certificate_number: certificateNumber,
+          program_name: programName,
+          program_type: programType,
+          certificate_type: certificateType,
+          issue_date: issueDate,
+        },
+        send_email: false, // Manejaremos el envío de correo nosotros para personalizar el mensaje
+      }),
+    });
+
+    if (!simpleCertResponse.ok) {
+      const errorText = await simpleCertResponse.text();
+      console.error('SimpleCert error:', errorText);
+      throw new Error(`Error al generar el certificado: ${errorText}`);
+    }
+
+    const certificateData = await simpleCertResponse.json();
+    console.log('Certificate generation response:', certificateData);
+
+    if (!certificateData.certificate_url) {
+      throw new Error('No se recibió URL del certificado generado');
     }
 
     const resend = new Resend(RESEND_API_KEY);
 
-    console.log('Generating certificate for:', { name, email, certificateNumber, programName });
-
-    // Generar URL de Dynapictures con los parámetros dinámicos
-    const dynapicturesUrl = new URL('https://api.dynapictures.com/generate');
-    dynapicturesUrl.searchParams.append('token', DYNAPICTURES_TOKEN);
-    dynapicturesUrl.searchParams.append('template', templateUrl);
-    dynapicturesUrl.searchParams.append('variables', JSON.stringify({
-      name: name,
-      program: programName,
-      certificate_number: certificateNumber,
-      date: issueDate,
-      institution: "CONAPCOOP"
-    }));
-
-    console.log('Requesting certificate generation from:', dynapicturesUrl.toString());
-
-    // Generar el certificado usando Dynapictures
-    const dynaResponse = await fetch(dynapicturesUrl.toString());
-    if (!dynaResponse.ok) {
-      const errorText = await dynaResponse.text();
-      console.error('Dynapictures error:', errorText);
-      throw new Error(`Error al generar el certificado: ${errorText}`);
-    }
-
-    const certificateData = await dynaResponse.json();
-    console.log('Certificate generation response:', certificateData);
-
-    if (!certificateData.url) {
-      throw new Error('No se recibió URL del certificado generado');
-    }
-
-    console.log('Sending email with certificate:', certificateData.url);
+    console.log('Sending email with certificate:', certificateData.certificate_url);
 
     // Enviar correo electrónico usando Resend
     const { data: emailData, error: emailError } = await resend.emails.send({
@@ -98,7 +104,10 @@ serve(async (req) => {
         <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
         <p>Número de certificado: ${certificateNumber}</p>
         <p>Fecha de emisión: ${issueDate}</p>
-        <img src="${certificateData.url}" alt="Certificado" style="max-width: 100%;"/>
+        <p>Puedes acceder a tu certificado en el siguiente enlace:</p>
+        <p><a href="${certificateData.certificate_url}" target="_blank">Ver certificado</a></p>
+        <p>También puedes verificar la autenticidad de tu certificado en:</p>
+        <p><a href="${certificateData.verification_url}" target="_blank">Verificar certificado</a></p>
         <p>Gracias por tu participación.</p>
       `,
     });
@@ -115,7 +124,8 @@ serve(async (req) => {
         success: true,
         message: 'Certificado enviado correctamente',
         data: emailData,
-        certificateUrl: certificateData.url
+        certificateUrl: certificateData.certificate_url,
+        verificationUrl: certificateData.verification_url
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
