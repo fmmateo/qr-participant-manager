@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +30,8 @@ interface ParticipantData {
 const Registration = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<ParticipantData[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -98,47 +99,87 @@ const Registration = () => {
     return data;
   };
 
-  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setCsvFile(null);
+      setParsedData([]);
+      return;
+    }
+
+    setCsvFile(file);
+    
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const participants = results.data as ParticipantData[];
+        if (participants.length > 1000) {
+          toast({
+            title: "Error",
+            description: "El archivo excede el límite de 1,000 participantes",
+            variant: "destructive",
+          });
+          setCsvFile(null);
+          setParsedData([]);
+          event.target.value = '';
+          return;
+        }
+        setParsedData(participants);
+      },
+      error: (error) => {
+        toast({
+          title: "Error",
+          description: `Error al procesar el archivo: ${error.message}`,
+          variant: "destructive",
+        });
+        setCsvFile(null);
+        setParsedData([]);
+        event.target.value = '';
+      },
+    });
+  };
+
+  const handleBulkUpload = async () => {
+    if (!csvFile || parsedData.length === 0) {
+      toast({
+        title: "Error",
+        description: "Por favor, selecciona un archivo CSV válido",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     let processedCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
 
     try {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          const participants = results.data as ParticipantData[];
-          
-          if (participants.length > 1000) {
-            throw new Error("El archivo excede el límite de 1,000 participantes");
-          }
+      for (const participant of parsedData) {
+        try {
+          await registerParticipant(participant);
+          processedCount++;
+        } catch (error) {
+          console.error(`Error registrando a ${participant.email}:`, error);
+          errorCount++;
+          errors.push(`${participant.email}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        }
+      }
 
-          for (const participant of participants) {
-            try {
-              await registerParticipant(participant);
-              processedCount++;
-            } catch (error) {
-              console.error(`Error registrando a ${participant.email}:`, error);
-              errorCount++;
-            }
-          }
-
-          toast({
-            title: "Proceso completado",
-            description: `Se registraron ${processedCount} participantes exitosamente. ${errorCount} registros fallaron.`,
-          });
-          
-          // Limpiar el input file
-          event.target.value = '';
-        },
-        error: (error) => {
-          throw new Error(`Error al procesar el archivo: ${error.message}`);
-        },
+      toast({
+        title: "Proceso completado",
+        description: `Se registraron ${processedCount} participantes exitosamente. ${errorCount} registros fallaron.`,
       });
+
+      if (errors.length > 0) {
+        console.error("Detalles de errores:", errors);
+      }
+
+      setCsvFile(null);
+      setParsedData([]);
+      const fileInput = document.getElementById('csv') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -265,13 +306,34 @@ const Registration = () => {
                     id="csv"
                     type="file"
                     accept=".csv"
-                    onChange={handleBulkUpload}
+                    onChange={handleFileSelect}
                     disabled={isSubmitting}
                   />
+                  {csvFile && (
+                    <p className="text-sm text-green-600">
+                      Archivo seleccionado: {csvFile.name} ({parsedData.length} participantes)
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     El archivo debe incluir columnas para: name, email, y role
                   </p>
                 </div>
+
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={handleBulkUpload}
+                  disabled={isSubmitting || !csvFile}
+                >
+                  {isSubmitting ? (
+                    'Procesando...'
+                  ) : (
+                    <>
+                      Registrar Participantes
+                      <Upload className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
               </div>
             </TabsContent>
           </Tabs>
