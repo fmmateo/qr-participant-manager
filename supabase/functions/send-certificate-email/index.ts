@@ -1,5 +1,5 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Resend } from "npm:resend@2.0.0"
 
 const corsHeaders = {
@@ -8,12 +8,21 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const payload = await req.json();
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+
+    if (!SIMPLECERT_API_KEY || !RESEND_API_KEY) {
+      throw new Error('Error de configuración: Faltan claves API necesarias');
+    }
+
+    const reqData = await req.text();
+    const payload = JSON.parse(reqData);
     console.log('Payload recibido:', payload);
 
     const {
@@ -28,14 +37,7 @@ serve(async (req) => {
     } = payload;
 
     if (!email || !name || !certificateNumber || !programName || !templateUrl) {
-      throw new Error('Faltan campos requeridos');
-    }
-
-    const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-
-    if (!SIMPLECERT_API_KEY || !RESEND_API_KEY) {
-      throw new Error('Error de configuración: Faltan claves API necesarias');
+      throw new Error('Faltan campos requeridos en el payload');
     }
 
     // Nueva extracción del ID de la plantilla
@@ -71,16 +73,14 @@ serve(async (req) => {
       body: JSON.stringify(simpleCertPayload),
     });
 
+    const simpleCertData = await simpleCertResponse.text();
+    console.log('SimpleCert response:', simpleCertResponse.status, simpleCertData);
+
     if (!simpleCertResponse.ok) {
-      const errorText = await simpleCertResponse.text();
-      console.error('Error de SimpleCert:', {
-        status: simpleCertResponse.status,
-        error: errorText
-      });
-      throw new Error(`Error al generar el certificado: ${errorText}`);
+      throw new Error(`Error al generar el certificado: ${simpleCertData}`);
     }
 
-    const certificateData = await simpleCertResponse.json();
+    const certificateData = JSON.parse(simpleCertData);
     
     if (!certificateData.pdf_url) {
       throw new Error('No se recibió URL del certificado generado');
@@ -102,12 +102,15 @@ serve(async (req) => {
       <p>Gracias por tu participación.</p>
     `;
 
-    const emailData = await resend.emails.send({
+    console.log('Enviando email con Resend...');
+    const emailResult = await resend.emails.send({
       from: 'CONAPCOOP <certificados@resend.dev>',
       to: [email],
       subject: `Tu certificado de ${certificateType} - ${programName}`,
       html: emailHtml,
     });
+
+    console.log('Resend response:', emailResult);
 
     return new Response(
       JSON.stringify({
@@ -115,12 +118,12 @@ serve(async (req) => {
         message: 'Certificado enviado correctamente',
         certificateUrl: certificateData.pdf_url,
         verificationUrl: certificateData.verification_url,
-        id: certificateData.id
+        id: certificateData.id,
       }),
       {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders 
+          ...corsHeaders,
         },
       }
     );
@@ -134,9 +137,9 @@ serve(async (req) => {
         error: error.message || 'Error interno del servidor'
       }),
       {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders 
+          ...corsHeaders,
         },
         status: 400,
       }
