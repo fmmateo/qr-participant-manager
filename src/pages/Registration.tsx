@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Send, Upload } from "lucide-react";
+import { Send, Upload, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import Papa from 'papaparse';
 import {
   Select,
@@ -34,6 +35,7 @@ const validateParticipant = (participant: ParticipantData): string | null => {
 };
 
 const Registration = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [csvParticipants, setCsvParticipants] = useState<ParticipantData[]>([]);
@@ -216,6 +218,15 @@ const Registration = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8">
+        <Button 
+          variant="ghost" 
+          className="mb-6"
+          onClick={() => navigate('/')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver
+        </Button>
+
         <Card className="p-6">
           <div className="space-y-6">
             <div className="space-y-2">
