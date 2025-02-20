@@ -5,6 +5,14 @@ const SIMPLECERT_API_KEY = Deno.env.get("SIMPLECERT_API_KEY");
 const API_URL = "https://api.simplecert.net/v1";
 const TEMPLATE_ID = "template_default"; // Reemplaza esto con tu ID de plantilla
 
+// Datos específicos del proyecto
+const PROJECT_INFO = {
+  id: "231874",
+  title: "Félix Mateo",
+  type: "Certificado Cooperativa",
+  organization: "Cooperativa Félix Mateo"
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -29,6 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
     const data: CertificateData = await req.json();
     
     console.log('Iniciando generación de certificado para:', data.email);
+    console.log('Proyecto:', PROJECT_INFO.id);
     
     const simpleCertPayload = {
       recipient: {
@@ -37,13 +46,14 @@ const handler = async (req: Request): Promise<Response> => {
       },
       template_id: TEMPLATE_ID,
       custom_fields: {
-        certificate_number: data.certificateNumber,
+        certificate_number: `${PROJECT_INFO.id}-${data.certificateNumber}`,
         certificate_type: `Certificado de ${data.certificateType}`,
         program_name: data.programName,
         program_type: data.programType,
         issue_date: data.issueDate,
-        // Campos adicionales específicos para cooperativa
-        organization: "Cooperativa",
+        project_id: PROJECT_INFO.id,
+        project_title: PROJECT_INFO.title,
+        organization: PROJECT_INFO.organization,
         signature_title: "Director Ejecutivo",
         signature_date: new Date().toLocaleDateString('es-ES', {
           year: 'numeric',
@@ -55,11 +65,11 @@ const handler = async (req: Request): Promise<Response> => {
       send_email: true,
       email_message: `¡Felicitaciones ${data.name}!
 
-Por medio de la presente, hacemos constar que has completado exitosamente el programa "${data.programName}" en nuestra cooperativa.
+Por medio de la presente, ${PROJECT_INFO.organization} hace constar que has completado exitosamente el programa "${data.programName}".
 
-Este certificado de ${data.certificateType} se emite como reconocimiento a tu dedicación y compromiso.
+Este certificado de ${data.certificateType} se emite como reconocimiento a tu dedicación y compromiso dentro del proyecto "${PROJECT_INFO.title}" (ID: ${PROJECT_INFO.id}).
 
-Número de Certificado: ${data.certificateNumber}
+Número de Certificado: ${PROJECT_INFO.id}-${data.certificateNumber}
 Fecha de Emisión: ${data.issueDate}
 
 El certificado está adjunto a este correo. También puedes descargarlo usando el enlace proporcionado.
@@ -67,7 +77,8 @@ El certificado está adjunto a este correo. También puedes descargarlo usando e
 ¡Felicitaciones por este logro!
 
 Atentamente,
-Cooperativa`
+${PROJECT_INFO.organization}
+Proyecto: ${PROJECT_INFO.title}`
     };
 
     console.log('Enviando solicitud a SimpleCert:', JSON.stringify(simpleCertPayload, null, 2));
@@ -95,7 +106,8 @@ Cooperativa`
         success: true,
         certificateId: result.id,
         certificateUrl: result.pdf_url,
-        verificationUrl: result.verification_url
+        verificationUrl: result.verification_url,
+        projectInfo: PROJECT_INFO
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,7 +121,8 @@ Cooperativa`
       JSON.stringify({ 
         success: false, 
         error: error.message,
-        details: error instanceof Error ? error.stack : undefined
+        details: error instanceof Error ? error.stack : undefined,
+        projectInfo: PROJECT_INFO
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
