@@ -23,8 +23,10 @@ serve(async (req) => {
 
     let payload;
     try {
-      payload = await req.json();
-      console.log('Payload recibido:', payload);
+      const bodyText = await req.text();
+      console.log('Raw request body:', bodyText);
+      payload = JSON.parse(bodyText);
+      console.log('Payload procesado:', payload);
     } catch (error) {
       console.error('Error parsing request body:', error);
       throw new Error('Invalid request payload');
@@ -45,18 +47,21 @@ serve(async (req) => {
       throw new Error('Faltan campos requeridos en el payload');
     }
 
-    // Extraer template_id de la URL
-    const urlParts = templateUrl.split('/');
-    const template_id = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1];
+    // Extraer template_id de la URL de manera más robusta
+    const templateId = templateUrl.split('/').reduce((id, part) => {
+      // Eliminar la extensión del archivo si existe
+      const cleanPart = part.replace(/\.[^/.]+$/, "");
+      return cleanPart || id;
+    }, "");
 
-    if (!template_id) {
-      throw new Error('URL de template inválida');
+    if (!templateId) {
+      throw new Error('No se pudo extraer el ID del template de la URL: ' + templateUrl);
     }
 
-    console.log('Template ID extraído:', template_id);
+    console.log('Template ID extraído:', templateId);
 
     const simpleCertPayload = {
-      template_id,
+      template_id: templateId,
       recipient: {
         name,
         email,
@@ -73,55 +78,92 @@ serve(async (req) => {
 
     console.log('Enviando petición a SimpleCert:', JSON.stringify(simpleCertPayload));
 
-    const simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(simpleCertPayload),
-    });
+    let simpleCertResponse;
+    try {
+      simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SIMPLECERT_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(simpleCertPayload),
+      });
+    } catch (error) {
+      console.error('Error en la petición a SimpleCert:', error);
+      throw new Error(`Error de conexión con SimpleCert: ${error.message}`);
+    }
 
     if (!simpleCertResponse.ok) {
       const errorText = await simpleCertResponse.text();
-      console.error('SimpleCert error response:', errorText);
-      throw new Error(`Error generando certificado: ${errorText}`);
+      console.error('SimpleCert error response:', {
+        status: simpleCertResponse.status,
+        statusText: simpleCertResponse.statusText,
+        body: errorText
+      });
+      throw new Error(`Error del servicio SimpleCert: ${errorText}`);
     }
 
-    const certificateData = await simpleCertResponse.json();
-    console.log('SimpleCert response:', certificateData);
+    let certificateData;
+    try {
+      certificateData = await simpleCertResponse.json();
+      console.log('Respuesta de SimpleCert:', certificateData);
+    } catch (error) {
+      console.error('Error parsing SimpleCert response:', error);
+      throw new Error('Respuesta inválida de SimpleCert');
+    }
 
     if (!certificateData.pdf_url) {
-      throw new Error('No se recibió URL del certificado');
+      console.error('SimpleCert response sin PDF URL:', certificateData);
+      throw new Error('No se recibió la URL del certificado de SimpleCert');
     }
 
     // Enviar el correo electrónico usando Resend
     const resend = new Resend(RESEND_API_KEY);
     
     const emailHtml = `
-      <h1>¡Hola ${name}!</h1>
-      <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
-      <p>Número de certificado: ${certificateNumber}</p>
-      <p>Fecha de emisión: ${issueDate}</p>
-      <p>Puedes acceder a tu certificado en el siguiente enlace:</p>
-      <p><a href="${certificateData.pdf_url}" target="_blank">Ver certificado</a></p>
-      ${certificateData.verification_url ? `
-        <p>También puedes verificar la autenticidad de tu certificado en:</p>
-        <p><a href="${certificateData.verification_url}" target="_blank">Verificar certificado</a></p>
-      ` : ''}
-      <p>Gracias por tu participación.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #333; text-align: center;">¡Hola ${name}!</h1>
+        <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Número de certificado:</strong> ${certificateNumber}</p>
+          <p><strong>Fecha de emisión:</strong> ${issueDate}</p>
+        </div>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${certificateData.pdf_url}" 
+             style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;"
+             target="_blank">
+            Ver certificado
+          </a>
+        </div>
+        ${certificateData.verification_url ? `
+          <div style="text-align: center; margin: 20px 0;">
+            <p>Para verificar la autenticidad de tu certificado, haz clic aquí:</p>
+            <a href="${certificateData.verification_url}" 
+               style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;"
+               target="_blank">
+              Verificar certificado
+            </a>
+          </div>
+        ` : ''}
+        <p style="text-align: center; color: #666; margin-top: 30px;">Gracias por tu participación.</p>
+      </div>
     `;
 
     console.log('Enviando email a:', email);
     
-    const emailResult = await resend.emails.send({
-      from: 'CONAPCOOP <certificados@resend.dev>',
-      to: [email],
-      subject: `Tu certificado de ${certificateType} - ${programName}`,
-      html: emailHtml,
-    });
-
-    console.log('Email enviado exitosamente:', emailResult);
+    let emailResult;
+    try {
+      emailResult = await resend.emails.send({
+        from: 'CONAPCOOP <certificados@resend.dev>',
+        to: [email],
+        subject: `Tu certificado de ${certificateType} - ${programName}`,
+        html: emailHtml,
+      });
+      console.log('Respuesta de Resend:', emailResult);
+    } catch (error) {
+      console.error('Error enviando email con Resend:', error);
+      throw new Error(`Error enviando email: ${error.message}`);
+    }
 
     return new Response(
       JSON.stringify({
