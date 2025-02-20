@@ -138,10 +138,13 @@ export type Database = {
           certificate_type: string
           created_at: string
           id: string
+          image_url: string | null
           issue_date: string
+          last_error: string | null
           participant_id: string
           program_name: string
           program_type: string
+          retry_count: number | null
           sent_at: string | null
           sent_email_status: string | null
           template_id: string | null
@@ -152,10 +155,13 @@ export type Database = {
           certificate_type: string
           created_at?: string
           id?: string
+          image_url?: string | null
           issue_date?: string
+          last_error?: string | null
           participant_id: string
           program_name: string
           program_type: string
+          retry_count?: number | null
           sent_at?: string | null
           sent_email_status?: string | null
           template_id?: string | null
@@ -166,10 +172,13 @@ export type Database = {
           certificate_type?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           issue_date?: string
+          last_error?: string | null
           participant_id?: string
           program_name?: string
           program_type?: string
+          retry_count?: number | null
           sent_at?: string | null
           sent_email_status?: string | null
           template_id?: string | null

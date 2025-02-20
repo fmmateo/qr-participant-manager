@@ -19,7 +19,6 @@ interface CertificateEmailPayload {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -54,6 +53,8 @@ serve(async (req) => {
       throw new Error('DYNAPICTURES_TOKEN no está configurado');
     }
 
+    const resend = new Resend(RESEND_API_KEY);
+
     console.log('Generating certificate for:', { name, email, certificateNumber, programName });
 
     // Generar URL de Dynapictures con los parámetros dinámicos
@@ -84,8 +85,6 @@ serve(async (req) => {
     if (!certificateData.url) {
       throw new Error('No se recibió URL del certificado generado');
     }
-
-    const resend = new Resend(RESEND_API_KEY);
 
     console.log('Sending email with certificate:', certificateData.url);
 
