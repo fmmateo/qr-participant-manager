@@ -12,33 +12,37 @@ export const issueCertificate = async (
     throw new Error('Datos del participante inválidos');
   }
 
-  if (!selectedTemplate) {
-    throw new Error('Debe seleccionar una plantilla de certificado');
+  if (!selectedTemplate?.id) {
+    throw new Error('Debe seleccionar una plantilla de certificado válida');
   }
-
-  // Verificar si la plantilla está bloqueada o inactiva
-  const { data: template, error: templateError } = await supabase
-    .from('certificate_templates')
-    .select('is_locked, is_active')
-    .eq('id', selectedTemplate.id)
-    .single();
-
-  if (templateError) {
-    console.error('Error al verificar plantilla:', templateError);
-    throw new Error('Error al verificar el estado de la plantilla');
-  }
-
-  if (template?.is_locked) {
-    throw new Error('La plantilla seleccionada está bloqueada');
-  }
-
-  if (!template?.is_active) {
-    throw new Error('La plantilla seleccionada no está activa');
-  }
-
-  const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
   try {
+    // Verificar si la plantilla está bloqueada o inactiva
+    const { data: template, error: templateError } = await supabase
+      .from('certificate_templates')
+      .select('is_locked, is_active, template_url')
+      .eq('id', selectedTemplate.id)
+      .maybeSingle();
+
+    if (templateError) {
+      console.error('Error al verificar plantilla:', templateError);
+      throw new Error('Error al verificar el estado de la plantilla');
+    }
+
+    if (!template) {
+      throw new Error('La plantilla seleccionada no existe');
+    }
+
+    if (template.is_locked) {
+      throw new Error('La plantilla seleccionada está bloqueada');
+    }
+
+    if (!template.is_active) {
+      throw new Error('La plantilla seleccionada no está activa');
+    }
+
+    const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
+
     // Limpiar certificados anteriores con error
     await supabase
       .from('certificates')
@@ -94,7 +98,7 @@ export const issueCertificate = async (
       programName: program.name,
       issueDate: new Date().toLocaleDateString('es-ES'),
       templateId: selectedTemplate.id,
-      templateUrl: selectedTemplate.template_url
+      templateUrl: template.template_url // Usamos la URL de la plantilla de la base de datos
     };
 
     console.log('Enviando payload a la función edge:', emailPayload);
@@ -107,22 +111,26 @@ export const issueCertificate = async (
       }
     );
 
+    console.log('Respuesta de la función edge:', response);
+
     if (edgeError || !response?.success) {
-      console.error('Error en la función edge:', edgeError || response?.error);
+      const errorMessage = edgeError?.message || response?.error || 'Error desconocido';
+      console.error('Error en la función edge:', errorMessage);
+      
       await supabase
         .from('certificates')
         .update({
           sent_email_status: 'ERROR',
-          last_error: edgeError?.message || response?.error || 'Error desconocido',
+          last_error: errorMessage,
           retry_count: 1
         })
         .eq('certificate_number', certificateNumber);
 
-      throw new Error(edgeError?.message || response?.error || 'Error al enviar el certificado');
+      throw new Error(`Error al enviar el certificado: ${errorMessage}`);
     }
 
     // Actualizar certificado con éxito
-    await supabase
+    const { error: updateError } = await supabase
       .from('certificates')
       .update({
         sent_at: new Date().toISOString(),
@@ -132,6 +140,11 @@ export const issueCertificate = async (
         external_id: response.id
       })
       .eq('certificate_number', certificateNumber);
+
+    if (updateError) {
+      console.error('Error al actualizar el certificado:', updateError);
+      throw new Error('Error al actualizar el estado del certificado');
+    }
 
     return response;
 
