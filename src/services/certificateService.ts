@@ -84,25 +84,29 @@ export const issueCertificate = async (
       throw insertError;
     }
 
-    // Actualizar el diseño con la información del participante
+    // Clonar y actualizar el diseño con la información del participante
     const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
     
     // Actualizar campos específicos
-    if (updatedDesignParams.name) {
-      updatedDesignParams.name.text = participant.name;
-    }
-    if (updatedDesignParams.title) {
-      updatedDesignParams.title.text = program.name;
-    }
-    if (updatedDesignParams.subtitle1) {
-      updatedDesignParams.subtitle1.text = program.type;
-    }
-    if (updatedDesignParams.subtitle2) {
-      updatedDesignParams.subtitle2.text = certType;
-    }
-    if (updatedDesignParams.date) {
-      updatedDesignParams.date.text = new Date().toLocaleDateString('es-ES');
-    }
+    Object.keys(updatedDesignParams).forEach(key => {
+      switch(key) {
+        case 'name':
+          updatedDesignParams[key].text = participant.name;
+          break;
+        case 'title':
+          updatedDesignParams[key].text = program.name;
+          break;
+        case 'subtitle1':
+          updatedDesignParams[key].text = program.type;
+          break;
+        case 'subtitle2':
+          updatedDesignParams[key].text = certType;
+          break;
+        case 'date':
+          updatedDesignParams[key].text = new Date().toLocaleDateString('es-ES');
+          break;
+      }
+    });
 
     // Construir payload para la función edge
     const emailPayload = {
