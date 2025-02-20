@@ -8,12 +8,12 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  try {
-    // Handle CORS preflight requests
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
+  try {
     const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
@@ -23,8 +23,7 @@ serve(async (req) => {
 
     let payload;
     try {
-      const rawBody = await req.text();
-      payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+      payload = await req.json();
       console.log('Payload recibido:', payload);
     } catch (error) {
       console.error('Error parsing request body:', error);
@@ -46,8 +45,10 @@ serve(async (req) => {
       throw new Error('Faltan campos requeridos en el payload');
     }
 
-    // Crear el certificado en SimpleCert
-    const template_id = templateUrl.split('/').pop()?.split('.')[0];
+    // Extraer template_id de la URL
+    const urlParts = templateUrl.split('/');
+    const template_id = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1];
+
     if (!template_id) {
       throw new Error('URL de template inválida');
     }
@@ -70,7 +71,7 @@ serve(async (req) => {
       send_email: false,
     };
 
-    console.log('Enviando petición a SimpleCert:', simpleCertPayload);
+    console.log('Enviando petición a SimpleCert:', JSON.stringify(simpleCertPayload));
 
     const simpleCertResponse = await fetch('https://api.simplecert.net/v1/certificates', {
       method: 'POST',
@@ -87,13 +88,8 @@ serve(async (req) => {
       throw new Error(`Error generando certificado: ${errorText}`);
     }
 
-    let certificateData;
-    try {
-      certificateData = await simpleCertResponse.json();
-    } catch (error) {
-      console.error('Error parsing SimpleCert response:', error);
-      throw new Error('Invalid response from SimpleCert');
-    }
+    const certificateData = await simpleCertResponse.json();
+    console.log('SimpleCert response:', certificateData);
 
     if (!certificateData.pdf_url) {
       throw new Error('No se recibió URL del certificado');

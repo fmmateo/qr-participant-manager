@@ -18,24 +18,40 @@ export const issueCertificate = async (
 
   const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
-  // Verificar si ya existe un certificado
-  const { data: existingCerts, error: existingCertError } = await supabase
+  // Verificar si ya existe un certificado - usando maybeSingle para manejar mejor el caso de no existencia
+  const { data: existingCert, error: existingCertError } = await supabase
     .from('certificates')
     .select('*')
     .eq('participant_id', participant.id)
     .eq('program_name', program.name)
-    .eq('certificate_type', certType);
+    .eq('certificate_type', certType)
+    .eq('sent_email_status', 'SUCCESS')
+    .maybeSingle();
 
   if (existingCertError) {
     console.error('Error al verificar certificado existente:', existingCertError);
     throw existingCertError;
   }
 
-  if (existingCerts && existingCerts.length > 0) {
+  // Solo considerar como existente si el certificado fue enviado exitosamente
+  if (existingCert?.sent_email_status === 'SUCCESS') {
     throw new Error(`Ya existe un certificado de ${certType} para este programa`);
   }
 
-  // Crear el certificado en la base de datos
+  // Si existe un certificado previo con error, lo eliminamos para crear uno nuevo
+  if (existingCert) {
+    const { error: deleteError } = await supabase
+      .from('certificates')
+      .delete()
+      .eq('id', existingCert.id);
+
+    if (deleteError) {
+      console.error('Error eliminando certificado anterior:', deleteError);
+      throw deleteError;
+    }
+  }
+
+  // Crear el nuevo certificado
   const { data: certificate, error: certificateError } = await supabase
     .from('certificates')
     .insert([
@@ -47,6 +63,7 @@ export const issueCertificate = async (
         program_name: program.name,
         issue_date: new Date().toISOString(),
         template_id: selectedTemplate.id,
+        sent_email_status: 'PENDING'
       }
     ])
     .select()
@@ -58,7 +75,6 @@ export const issueCertificate = async (
   }
 
   try {
-    // Preparar el payload para la función edge
     const emailPayload = {
       name: participant.name,
       email: participant.email,
@@ -103,6 +119,7 @@ export const issueCertificate = async (
 
     if (updateError) {
       console.error('Error updating certificate status:', updateError);
+      throw updateError;
     }
 
     return emailResponse;
