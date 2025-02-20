@@ -87,34 +87,29 @@ export const issueCertificate = async (
     // Clonar y actualizar el diseño con la información del participante
     const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
     
-    // Actualizar campos específicos asegurándose de que existan
-    const fieldMappings = {
-      name: participant.name,
-      participant_name: participant.name, // Alternativa común
-      full_name: participant.name, // Otra alternativa
-      title: program.name,
-      program: program.name,
-      subtitle1: program.type,
-      program_type: program.type,
-      subtitle2: certType,
-      certificate_type: certType,
-      date: new Date().toLocaleDateString('es-ES'),
-      issue_date: new Date().toLocaleDateString('es-ES'),
-    };
+    // Definir campos específicos para la plantilla
+    if (typeof updatedDesignParams !== 'object') {
+      throw new Error('Formato de diseño inválido');
+    }
 
-    // Actualizar todos los campos que coincidan con nuestras claves conocidas
-    Object.keys(updatedDesignParams).forEach(key => {
-      const lowerKey = key.toLowerCase();
-      for (const [mappingKey, value] of Object.entries(fieldMappings)) {
-        if (lowerKey.includes(mappingKey.toLowerCase())) {
-          if (updatedDesignParams[key] && typeof updatedDesignParams[key] === 'object') {
-            updatedDesignParams[key].text = value;
-          } else {
-            updatedDesignParams[key] = value;
-          }
-        }
-      }
-    });
+    // Mapeo simple y directo de campos
+    if (updatedDesignParams.name) {
+      updatedDesignParams.name.text = participant.name;
+    }
+    if (updatedDesignParams.title) {
+      updatedDesignParams.title.text = program.name;
+    }
+    if (updatedDesignParams.subtitle1) {
+      updatedDesignParams.subtitle1.text = program.type;
+    }
+    if (updatedDesignParams.subtitle2) {
+      updatedDesignParams.subtitle2.text = certType;
+    }
+    if (updatedDesignParams.date) {
+      updatedDesignParams.date.text = new Date().toLocaleDateString('es-ES');
+    }
+
+    console.log('Parámetros de diseño actualizados:', updatedDesignParams);
 
     // Construir payload para la función edge
     const emailPayload = {
