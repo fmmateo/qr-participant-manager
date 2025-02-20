@@ -110,6 +110,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean | null
+          is_locked: boolean | null
           name: string
           template_url: string
           updated_at: string
@@ -118,6 +119,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_locked?: boolean | null
           name: string
           template_url: string
           updated_at?: string
@@ -126,6 +128,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_locked?: boolean | null
           name?: string
           template_url?: string
           updated_at?: string
