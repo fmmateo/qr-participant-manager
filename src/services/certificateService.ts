@@ -58,6 +58,7 @@ export const issueCertificate = async (
   }
 
   try {
+    // Preparar el payload para la función edge
     const emailPayload = {
       name: participant.name,
       email: participant.email,
@@ -69,21 +70,23 @@ export const issueCertificate = async (
       templateUrl: selectedTemplate.template_url,
     };
 
+    console.log('Sending certificate email with payload:', emailPayload);
+
     const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
       'send-certificate-email',
       {
-        body: JSON.stringify(emailPayload)
+        body: emailPayload,
       }
     );
 
     if (emailError) {
-      console.error('Error invoking edge function:', emailError);
-      throw emailError;
+      console.error('Error calling edge function:', emailError);
+      throw new Error(`Error al enviar el correo: ${emailError.message}`);
     }
 
     if (!emailResponse?.success) {
-      console.error('Error response from edge function:', emailResponse);
-      throw new Error(emailResponse?.error || 'Error al enviar el certificado');
+      console.error('Edge function error:', emailResponse);
+      throw new Error(emailResponse?.error || 'Error al procesar el certificado');
     }
 
     // Actualizar el certificado con los datos de la respuesta
@@ -99,19 +102,20 @@ export const issueCertificate = async (
       .eq('certificate_number', certificateNumber);
 
     if (updateError) {
-      console.error('Error updating certificate:', updateError);
+      console.error('Error updating certificate status:', updateError);
     }
 
     return emailResponse;
 
   } catch (error) {
     console.error('Error in certificate process:', error);
-    // Si falla el envío, actualizar el estado del certificado
+    
+    // Actualizar el estado del certificado en caso de error
     const { error: updateError } = await supabase
       .from('certificates')
       .update({
         sent_email_status: 'ERROR',
-        last_error: error.message || 'Error desconocido',
+        last_error: error instanceof Error ? error.message : 'Error desconocido',
         retry_count: 1
       })
       .eq('certificate_number', certificateNumber);
