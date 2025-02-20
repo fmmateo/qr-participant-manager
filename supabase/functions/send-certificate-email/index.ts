@@ -31,15 +31,28 @@ serve(async (req) => {
 
     console.log('Generating certificate for:', { name, email, certificateNumber, programName });
 
-    // Generar URL de Dynapictures con los parámetros dinámicos
-    const dynapicturesUrl = new URL(templateUrl);
-    dynapicturesUrl.searchParams.append('name', name);
-    dynapicturesUrl.searchParams.append('program', programName);
-    dynapicturesUrl.searchParams.append('certificate_number', certificateNumber);
-    dynapicturesUrl.searchParams.append('date', new Date(issueDate).toLocaleDateString('es-ES'));
-    dynapicturesUrl.searchParams.append('institution', 'Tu Institución'); // Reemplaza con el nombre de tu institución
+    // Generar URL de Dynapictures con los parámetros dinámicos y el token de autenticación
+    const dynapicturesUrl = new URL('https://api.dynapictures.com/generate');
+    dynapicturesUrl.searchParams.append('token', Deno.env.get('DYNAPICTURES_TOKEN') || '');
+    dynapicturesUrl.searchParams.append('template', templateUrl);
+    dynapicturesUrl.searchParams.append('variables', JSON.stringify({
+      name: name,
+      program: programName,
+      certificate_number: certificateNumber,
+      date: new Date(issueDate).toLocaleDateString('es-ES'),
+      institution: "Universidad XYZ"
+    }));
 
     console.log('Dynapictures URL:', dynapicturesUrl.toString());
+
+    // Generar el certificado usando Dynapictures
+    const dynaResponse = await fetch(dynapicturesUrl.toString());
+    if (!dynaResponse.ok) {
+      throw new Error('Error al generar el certificado con Dynapictures');
+    }
+
+    const certificateImage = await dynaResponse.blob();
+    const certificateUrl = URL.createObjectURL(certificateImage);
 
     // Enviar correo electrónico usando Resend
     const resendResponse = await fetch('https://api.resend.com/emails', {
@@ -57,7 +70,7 @@ serve(async (req) => {
           <p>Te adjuntamos tu certificado de ${certificateType} para el ${programType}: ${programName}.</p>
           <p>Número de certificado: ${certificateNumber}</p>
           <p>Fecha de emisión: ${issueDate}</p>
-          <img src="${dynapicturesUrl.toString()}" alt="Certificado" style="max-width: 100%;"/>
+          <img src="${certificateUrl}" alt="Certificado" style="max-width: 100%;"/>
           <p>Gracias por tu participación.</p>
         `,
       }),
