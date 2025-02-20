@@ -19,6 +19,7 @@ interface ParticipantData {
   name: string;
   email: string;
   role: string;
+  organization: string;
 }
 
 const validateParticipant = (participant: ParticipantData): string | null => {
@@ -37,7 +38,8 @@ const Registration = () => {
   const [formData, setFormData] = useState<ParticipantData>({
     name: '',
     email: '',
-    role: ''
+    role: '',
+    organization: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +59,7 @@ const Registration = () => {
 
     try {
       await registerParticipant(formData);
-      setFormData({ name: '', email: '', role: '' });
+      setFormData({ name: '', email: '', role: '', organization: '' });
       toast({
         title: "¡Registro exitoso!",
         description: "Te hemos enviado un correo electrónico con tu código QR personal.",
@@ -84,7 +86,8 @@ const Registration = () => {
         email: participant.email.toLowerCase().trim(),
         qr_code: qrCode,
         status: 'active',
-        role: participant.role
+        role: participant.role,
+        organization: participant.organization.trim()
       }, {
         onConflict: 'email'
       })
@@ -160,6 +163,16 @@ const Registration = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="juan@ejemplo.com"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="organization">Cooperativa u Organización</Label>
+                <Input
+                  id="organization"
+                  value={formData.organization}
+                  onChange={(e) => setFormData(prev => ({ ...prev, organization: e.target.value }))}
+                  placeholder="Nombre de tu cooperativa u organización"
                 />
               </div>
 

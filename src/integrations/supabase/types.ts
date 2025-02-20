@@ -238,6 +238,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          organization: string | null
           qr_code: string | null
           qr_sent_at: string | null
           qr_sent_email_status: string | null
@@ -250,6 +251,7 @@ export type Database = {
           email: string
           id?: string
           name: string
+          organization?: string | null
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
@@ -262,6 +264,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          organization?: string | null
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
