@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const SIMPLECERT_API_KEY = Deno.env.get("SIMPLECERT_API_KEY");
 const API_URL = "https://api.simplecert.net/v1";
-const TEMPLATE_ID = Deno.env.get("TEMPLATE_ID") || "template_default"; // Ahora obtenemos el ID de las variables de entorno
+const SITE_URL = "https://fmmateo98.simplecert.net"; // Actualizado el dominio del sitio
 
 // Datos específicos del proyecto
 const PROJECT_INFO = {
@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         certificateId: result.id,
         certificateUrl: result.pdf_url,
-        verificationUrl: result.verification_url
+        verificationUrl: `${SITE_URL}/verify/${result.id}` // Usando el nuevo dominio para la verificación
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
