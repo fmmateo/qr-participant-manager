@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Send } from "lucide-react";
+import { Send, Upload, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import Papa from "papaparse";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
+interface ParticipantData {
+  name: string;
+  email: string;
+  role: string;
+}
 
 const Registration = () => {
   const { toast } = useToast();
@@ -24,63 +37,16 @@ const Registration = () => {
     role: ''
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const qrCode = crypto.randomUUID();
-      
-      const { data: participant, error: participantError } = await supabase
-        .from('participants')
-        .upsert({
-          name: formData.name,
-          email: formData.email,
-          qr_code: qrCode,
-          status: 'active',
-          role: formData.role
-        }, {
-          onConflict: 'email'
-        })
-        .select()
-        .single();
-
-      if (participantError) throw participantError;
-
-      const { error: qrEmailError } = await supabase.functions.invoke('send-qr-email', {
-        body: {
-          name: formData.name,
-          email: formData.email,
-          qrCode: qrCode,
-        },
-      });
-
-      if (qrEmailError) {
-        console.error('Error sending QR email:', qrEmailError);
-        throw qrEmailError;
-      }
-
-      const { error: updateError } = await supabase
-        .from('participants')
-        .update({
-          qr_sent_at: new Date().toISOString(),
-          qr_sent_email_status: 'SENT'
-        })
-        .eq('id', participant.id);
-
-      if (updateError) {
-        console.error('Error updating QR sent status:', updateError);
-      }
-
+      await registerParticipant(formData);
+      setFormData({ name: '', email: '', role: '' });
       toast({
         title: "¡Registro exitoso!",
         description: "Te hemos enviado un correo electrónico con tu código QR personal.",
-      });
-
-      setFormData({
-        name: '',
-        email: '',
-        role: ''
       });
     } catch (error) {
       console.error('Error:', error);
@@ -94,70 +60,221 @@ const Registration = () => {
     }
   };
 
+  const registerParticipant = async (participant: ParticipantData) => {
+    const qrCode = crypto.randomUUID();
+    
+    const { data, error: participantError } = await supabase
+      .from('participants')
+      .upsert({
+        name: participant.name,
+        email: participant.email,
+        qr_code: qrCode,
+        status: 'active',
+        role: participant.role
+      }, {
+        onConflict: 'email'
+      })
+      .select()
+      .single();
+
+    if (participantError) throw participantError;
+
+    await supabase.functions.invoke('send-qr-email', {
+      body: {
+        name: participant.name,
+        email: participant.email,
+        qrCode: qrCode,
+      },
+    });
+
+    await supabase
+      .from('participants')
+      .update({
+        qr_sent_at: new Date().toISOString(),
+        qr_sent_email_status: 'SENT'
+      })
+      .eq('id', data.id);
+
+    return data;
+  };
+
+  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsSubmitting(true);
+    let processedCount = 0;
+    let errorCount = 0;
+
+    try {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const participants = results.data as ParticipantData[];
+          
+          if (participants.length > 1000) {
+            throw new Error("El archivo excede el límite de 1,000 participantes");
+          }
+
+          for (const participant of participants) {
+            try {
+              await registerParticipant(participant);
+              processedCount++;
+            } catch (error) {
+              console.error(`Error registrando a ${participant.email}:`, error);
+              errorCount++;
+            }
+          }
+
+          toast({
+            title: "Proceso completado",
+            description: `Se registraron ${processedCount} participantes exitosamente. ${errorCount} registros fallaron.`,
+          });
+          
+          // Limpiar el input file
+          event.target.value = '';
+        },
+        error: (error) => {
+          throw new Error(`Error al procesar el archivo: ${error.message}`);
+        },
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al procesar el archivo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        name: "Juan Pérez",
+        email: "juan@ejemplo.com",
+        role: "participant"
+      }
+    ];
+    
+    const csv = Papa.unparse(template);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "plantilla_registro.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8">
         <Card className="p-6">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold">Registro de Participante</h1>
-              <p className="text-muted-foreground">
-                Completa el formulario para registrarte.
-              </p>
-            </div>
+          <Tabs defaultValue="single" className="space-y-6">
+            <TabsList className="grid grid-cols-2">
+              <TabsTrigger value="single">Registro Individual</TabsTrigger>
+              <TabsTrigger value="bulk">Registro Masivo</TabsTrigger>
+            </TabsList>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <TabsContent value="single" className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Nombre completo</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Juan Pérez"
-                  required
-                />
+                <h2 className="text-2xl font-bold">Registro Individual</h2>
+                <p className="text-muted-foreground">
+                  Registra un nuevo participante.
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="juan@ejemplo.com"
-                  required
-                />
-              </div>
+              <form onSubmit={handleSingleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre completo</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Juan Pérez"
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
-                  required
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo electrónico</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="juan@ejemplo.com"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="role">Rol</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="participant">Participante</SelectItem>
+                      <SelectItem value="facilitator">Facilitador</SelectItem>
+                      <SelectItem value="guest">Invitado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isSubmitting}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tu rol" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="participant">Participante</SelectItem>
-                    <SelectItem value="facilitator">Facilitador</SelectItem>
-                    <SelectItem value="guest">Invitado</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {isSubmitting ? 'Procesando...' : 'Registrarse'}
+                  <Send className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="bulk" className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">Registro Masivo</h2>
+                <p className="text-muted-foreground">
+                  Carga un archivo CSV con hasta 1,000 participantes.
+                </p>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Procesando...' : 'Registrarse'}
-                <Send className="ml-2 h-4 w-4" />
-              </Button>
-            </form>
-          </div>
+              <div className="space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadTemplate}
+                  className="w-full"
+                >
+                  Descargar Plantilla CSV
+                  <Download className="ml-2 h-4 w-4" />
+                </Button>
+
+                <div className="space-y-2">
+                  <Label htmlFor="csv">Archivo CSV</Label>
+                  <Input
+                    id="csv"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleBulkUpload}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    El archivo debe incluir columnas para: name, email, y role
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>
