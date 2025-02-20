@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,7 +144,9 @@ const IssueCertificate = () => {
         .update({
           sent_at: new Date().toISOString(),
           sent_email_status: 'SUCCESS',
-          image_url: emailData?.certificateUrl
+          image_url: emailData?.certificateUrl,
+          verification_url: emailData?.verificationUrl,
+          external_id: emailData?.id
         })
         .eq('certificate_number', certificateNumber);
 

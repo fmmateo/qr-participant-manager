@@ -137,6 +137,7 @@ export type Database = {
           certificate_number: string
           certificate_type: string
           created_at: string
+          external_id: string | null
           id: string
           image_url: string | null
           issue_date: string
@@ -149,11 +150,13 @@ export type Database = {
           sent_email_status: string | null
           template_id: string | null
           updated_at: string
+          verification_url: string | null
         }
         Insert: {
           certificate_number: string
           certificate_type: string
           created_at?: string
+          external_id?: string | null
           id?: string
           image_url?: string | null
           issue_date?: string
@@ -166,11 +169,13 @@ export type Database = {
           sent_email_status?: string | null
           template_id?: string | null
           updated_at?: string
+          verification_url?: string | null
         }
         Update: {
           certificate_number?: string
           certificate_type?: string
           created_at?: string
+          external_id?: string | null
           id?: string
           image_url?: string | null
           issue_date?: string
@@ -183,6 +188,7 @@ export type Database = {
           sent_email_status?: string | null
           template_id?: string | null
           updated_at?: string
+          verification_url?: string | null
         }
         Relationships: [
           {
