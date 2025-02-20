@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, File, Calendar, Clock, Save, Check, X } from "lucide-react";
+import { ArrowLeft, Upload, File, Calendar, Clock, Save, Check, X, Lock, Unlock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 const CertificateTemplates = () => {
   const navigate = useNavigate();
@@ -51,6 +52,19 @@ const CertificateTemplates = () => {
 
   const handleToggleActive = async (templateId: string, currentState: boolean) => {
     try {
+      // Verificar si hay otros templates activos antes de desactivar el último
+      if (currentState && templates) {
+        const activeTemplates = templates.filter(t => t.is_active && t.id !== templateId);
+        if (activeTemplates.length === 0) {
+          toast({
+            title: "Error",
+            description: "Debe mantener al menos una plantilla activa",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('certificate_templates')
         .update({ is_active: !currentState })
@@ -69,6 +83,31 @@ const CertificateTemplates = () => {
       toast({
         title: "Error",
         description: "Error al cambiar el estado de la plantilla",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleLock = async (templateId: string, currentState: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('certificate_templates')
+        .update({ is_locked: !currentState })
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Éxito!",
+        description: `Plantilla ${!currentState ? 'bloqueada' : 'desbloqueada'} correctamente`,
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al cambiar el estado de bloqueo de la plantilla",
         variant: "destructive",
       });
     }
@@ -96,7 +135,6 @@ const CertificateTemplates = () => {
     setIsUploading(true);
 
     try {
-      // Subir archivo al bucket
       const fileName = `${Date.now()}-${selectedFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('certificate-templates')
@@ -104,18 +142,18 @@ const CertificateTemplates = () => {
 
       if (uploadError) throw uploadError;
 
-      // Obtener URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('certificate-templates')
         .getPublicUrl(fileName);
 
-      // Guardar referencia en la base de datos
       const { error: dbError } = await supabase
         .from('certificate_templates')
         .insert([
           {
             name: templateName,
             template_url: publicUrl,
+            is_active: true,
+            is_locked: false
           }
         ]);
 
@@ -128,7 +166,6 @@ const CertificateTemplates = () => {
 
       setTemplateName("");
       setSelectedFile(null);
-      // Reset the file input
       const fileInput = document.getElementById('template') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       refetch();
@@ -210,6 +247,12 @@ const CertificateTemplates = () => {
                       <div className="flex items-center gap-3">
                         <File className="h-5 w-5 text-primary" />
                         <span className="font-medium">{template.name}</span>
+                        {template.is_locked && (
+                          <Badge variant="secondary">
+                            <Lock className="h-3 w-3 mr-1" />
+                            Bloqueada
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
@@ -221,6 +264,16 @@ const CertificateTemplates = () => {
                             onCheckedChange={() => handleToggleActive(template.id, template.is_active)}
                           />
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleLock(template.id, template.is_locked)}
+                        >
+                          {template.is_locked ? 
+                            <Unlock className="h-4 w-4" /> :
+                            <Lock className="h-4 w-4" />
+                          }
+                        </Button>
                         <Button
                           variant="secondary"
                           size="sm"
