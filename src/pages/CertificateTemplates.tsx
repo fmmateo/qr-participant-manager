@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, File, Calendar, Clock, Save, Check, X, Lock, Unlock, Power } from "lucide-react";
+import { ArrowLeft, Upload, File, Calendar, Clock, Save, Check, X, Lock, Unlock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -255,15 +255,15 @@ const CertificateTemplates = () => {
                         )}
                       </div>
                       <div className="flex items-center gap-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleActive(template.id, template.is_active)}
-                          className={template.is_active ? "bg-red-100 hover:bg-red-200" : "bg-green-100 hover:bg-green-200"}
-                        >
-                          <Power className={`h-4 w-4 ${template.is_active ? "text-red-500" : "text-green-500"}`} />
-                          <span className="ml-2">{template.is_active ? 'Desactivar' : 'Activar'}</span>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {template.is_active ? 'Activa' : 'Inactiva'}
+                          </span>
+                          <Switch
+                            checked={template.is_active}
+                            onCheckedChange={() => handleToggleActive(template.id, template.is_active)}
+                          />
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
