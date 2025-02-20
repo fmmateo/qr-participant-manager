@@ -20,7 +20,7 @@ export const issueCertificate = async (
     // Verificar si la plantilla está bloqueada o inactiva
     const { data: template, error: templateError } = await supabase
       .from('certificate_templates')
-      .select('is_locked, is_active, template_url')
+      .select('is_locked, is_active')
       .eq('id', selectedTemplate.id)
       .maybeSingle();
 
@@ -79,34 +79,27 @@ export const issueCertificate = async (
       throw insertError;
     }
 
-    // Construir payload para la función edge
-    const emailPayload = {
-      name: participant.name,
-      email: participant.email,
-      certificateNumber,
-      certificateType: certType,
-      programType: program.type,
-      programName: program.name,
-      issueDate: new Date().toLocaleDateString('es-ES'),
-      templateId: selectedTemplate.id,
-      templateUrl: template.template_url
-    };
-
-    console.log('Enviando payload a la función edge:', emailPayload);
-
-    // Llamar a la función edge
-    const { data: response, error: edgeError } = await supabase.functions.invoke(
-      'send-certificate-email',
+    // Generar el certificado con SimpleCert
+    const { data: response, error: generateError } = await supabase.functions.invoke(
+      'generate-certificate',
       {
-        body: emailPayload
+        body: {
+          name: participant.name,
+          email: participant.email,
+          certificateNumber,
+          certificateType: certType,
+          programName: program.name,
+          programType: program.type,
+          issueDate: new Date().toLocaleDateString('es-ES')
+        }
       }
     );
 
-    console.log('Respuesta de la función edge:', response);
+    console.log('Respuesta de SimpleCert:', response);
 
-    if (edgeError || !response?.success) {
-      const errorMessage = edgeError?.message || response?.error || 'Error desconocido';
-      console.error('Error en la función edge:', errorMessage);
+    if (generateError || !response?.success) {
+      const errorMessage = generateError?.message || response?.error || 'Error desconocido';
+      console.error('Error al generar el certificado:', errorMessage);
       
       await supabase
         .from('certificates')
@@ -117,7 +110,7 @@ export const issueCertificate = async (
         })
         .eq('certificate_number', certificateNumber);
 
-      throw new Error(`Error al enviar el certificado: ${errorMessage}`);
+      throw new Error(`Error al generar el certificado: ${errorMessage}`);
     }
 
     // Actualizar certificado con éxito
@@ -128,7 +121,7 @@ export const issueCertificate = async (
         sent_email_status: 'SUCCESS',
         image_url: response.certificateUrl,
         verification_url: response.verificationUrl,
-        external_id: response.id
+        external_id: response.certificateId
       })
       .eq('certificate_number', certificateNumber);
 
