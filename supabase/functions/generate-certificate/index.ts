@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const SIMPLECERT_API_KEY = Deno.env.get("SIMPLECERT_API_KEY");
 const API_URL = "https://api.simplecert.net/v1";
 const SITE_URL = "https://fmmateo98.simplecert.net";
-const TEMPLATE_ID = Deno.env.get("TEMPLATE_ID"); // Restauramos la variable TEMPLATE_ID
+const TEMPLATE_ID = Deno.env.get("TEMPLATE_ID");
 
 // Datos específicos del proyecto
 const PROJECT_INFO = {
@@ -38,6 +38,10 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     if (!TEMPLATE_ID) {
       throw new Error('TEMPLATE_ID is not defined');
+    }
+
+    if (!SIMPLECERT_API_KEY) {
+      throw new Error('SIMPLECERT_API_KEY is not defined');
     }
 
     const payload: CertificatePayload = await req.json();
@@ -90,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         certificateId: result.id,
         certificateUrl: result.pdf_url,
-        verificationUrl: `${SITE_URL}/verify/${result.id}` // Usando el nuevo dominio para la verificación
+        verificationUrl: `${SITE_URL}/verify/${result.id}`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
