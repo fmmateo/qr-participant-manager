@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Send, Upload, Download } from "lucide-react";
+import { Send, Upload, Download, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
@@ -20,6 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ParticipantData {
   name: string;
@@ -27,12 +29,23 @@ interface ParticipantData {
   role: string;
 }
 
+const validateParticipant = (participant: ParticipantData): string | null => {
+  if (!participant.name?.trim()) return "El nombre es requerido";
+  if (!participant.email?.trim()) return "El correo electrónico es requerido";
+  if (!participant.email.includes('@')) return "El correo electrónico no es válido";
+  if (!['participant', 'facilitator', 'guest'].includes(participant.role)) {
+    return "El rol debe ser: participant, facilitator o guest";
+  }
+  return null;
+};
+
 const Registration = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParticipantData[]>([]);
-  const [formData, setFormData] = useState({
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [formData, setFormData] = useState<ParticipantData>({
     name: '',
     email: '',
     role: ''
@@ -41,6 +54,17 @@ const Registration = () => {
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    const validationError = validateParticipant(formData);
+    if (validationError) {
+      toast({
+        title: "Error de validación",
+        description: validationError,
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       await registerParticipant(formData);
@@ -67,8 +91,8 @@ const Registration = () => {
     const { data, error: participantError } = await supabase
       .from('participants')
       .upsert({
-        name: participant.name,
-        email: participant.email,
+        name: participant.name.trim(),
+        email: participant.email.toLowerCase().trim(),
         qr_code: qrCode,
         status: 'active',
         role: participant.role
@@ -78,29 +102,47 @@ const Registration = () => {
       .select()
       .single();
 
-    if (participantError) throw participantError;
+    if (participantError) {
+      if (participantError.code === '23505') {
+        throw new Error("Este correo electrónico ya está registrado");
+      }
+      throw participantError;
+    }
 
-    await supabase.functions.invoke('send-qr-email', {
-      body: {
-        name: participant.name,
-        email: participant.email,
-        qrCode: qrCode,
-      },
-    });
+    try {
+      await supabase.functions.invoke('send-qr-email', {
+        body: {
+          name: participant.name,
+          email: participant.email,
+          qrCode: qrCode,
+        },
+      });
 
-    await supabase
-      .from('participants')
-      .update({
-        qr_sent_at: new Date().toISOString(),
-        qr_sent_email_status: 'SENT'
-      })
-      .eq('id', data.id);
+      await supabase
+        .from('participants')
+        .update({
+          qr_sent_at: new Date().toISOString(),
+          qr_sent_email_status: 'SENT'
+        })
+        .eq('id', data.id);
+
+    } catch (error) {
+      console.error('Error enviando email:', error);
+      // No lanzamos el error aquí para no interrumpir el registro
+      toast({
+        title: "Advertencia",
+        description: "El participante fue registrado pero hubo un problema al enviar el email",
+        variant: "destructive",
+      });
+    }
 
     return data;
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    setValidationErrors([]);
+    
     if (!file) {
       setCsvFile(null);
       setParsedData([]);
@@ -125,7 +167,30 @@ const Registration = () => {
           event.target.value = '';
           return;
         }
-        setParsedData(participants);
+
+        // Validar todos los registros antes de procesar
+        const errors: string[] = [];
+        participants.forEach((participant, index) => {
+          const error = validateParticipant(participant);
+          if (error) {
+            errors.push(`Fila ${index + 1}: ${error}`);
+          }
+        });
+
+        if (errors.length > 0) {
+          setValidationErrors(errors);
+          toast({
+            title: "Errores de validación",
+            description: "Por favor, corrije los errores en el archivo CSV",
+            variant: "destructive",
+          });
+        } else {
+          setParsedData(participants);
+          toast({
+            title: "Archivo válido",
+            description: `${participants.length} participantes listos para ser registrados`,
+          });
+        }
       },
       error: (error) => {
         toast({
@@ -135,6 +200,7 @@ const Registration = () => {
         });
         setCsvFile(null);
         setParsedData([]);
+        setValidationErrors([]);
         event.target.value = '';
       },
     });
@@ -145,6 +211,15 @@ const Registration = () => {
       toast({
         title: "Error",
         description: "Por favor, selecciona un archivo CSV válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Error",
+        description: "Por favor, corrije los errores en el archivo antes de continuar",
         variant: "destructive",
       });
       return;
@@ -174,12 +249,16 @@ const Registration = () => {
 
       if (errors.length > 0) {
         console.error("Detalles de errores:", errors);
+        setValidationErrors(errors);
+      } else {
+        // Limpiar el formulario solo si no hubo errores
+        setCsvFile(null);
+        setParsedData([]);
+        setValidationErrors([]);
+        const fileInput = document.getElementById('csv') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
       }
 
-      setCsvFile(null);
-      setParsedData([]);
-      const fileInput = document.getElementById('csv') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -319,11 +398,29 @@ const Registration = () => {
                   </p>
                 </div>
 
+                {validationErrors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-2">
+                        <p>Se encontraron los siguientes errores:</p>
+                        <ul className="list-disc pl-4 space-y-1">
+                          {validationErrors.map((error, index) => (
+                            <li key={index} className="text-sm">
+                              {error}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <Button
                   type="button"
                   className="w-full"
                   onClick={handleBulkUpload}
-                  disabled={isSubmitting || !csvFile}
+                  disabled={isSubmitting || !csvFile || validationErrors.length > 0}
                 >
                   {isSubmitting ? (
                     'Procesando...'

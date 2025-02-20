@@ -241,7 +241,7 @@ export type Database = {
           qr_code: string | null
           qr_sent_at: string | null
           qr_sent_email_status: string | null
-          role: string | null
+          role: string
           status: string
           updated_at: string
         }
@@ -253,7 +253,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
-          role?: string | null
+          role?: string
           status?: string
           updated_at?: string
         }
@@ -265,7 +265,7 @@ export type Database = {
           qr_code?: string | null
           qr_sent_at?: string | null
           qr_sent_email_status?: string | null
-          role?: string | null
+          role?: string
           status?: string
           updated_at?: string
         }
