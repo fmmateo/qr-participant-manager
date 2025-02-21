@@ -25,19 +25,15 @@ serve(async (req) => {
     }
 
     try {
-      // Generar QR como una URL de datos PNG
-      const qrDataUrl = await QRCode.toDataURL(qrCode, {
-        type: 'image/png',
+      // Generar QR como buffer
+      const qrBuffer = await QRCode.toBuffer(qrCode, {
+        type: 'png',
         margin: 1,
         width: 300,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        },
         errorCorrectionLevel: 'H'
       });
 
-      console.log('QR generado exitosamente');
+      console.log('QR generado exitosamente como buffer');
 
       const emailResponse = await resend.emails.send({
         from: "Asistencia <onboarding@resend.dev>",
@@ -63,7 +59,7 @@ serve(async (req) => {
                   </p>
                   
                   <div style="text-align: center; margin: 20px 0;">
-                    <img src="${qrDataUrl}" 
+                    <img src="cid:qr-code" 
                          alt="Tu código QR" 
                          style="max-width: 300px; width: 100%; height: auto;"
                     />
@@ -87,7 +83,15 @@ serve(async (req) => {
               </div>
             </body>
           </html>
-        `
+        `,
+        attachments: [
+          {
+            filename: 'qr-code.png',
+            content: qrBuffer,
+            contentType: 'image/png',
+            cid: 'qr-code' // Este ID se usa en el src de la imagen
+          }
+        ]
       });
 
       console.log('Email enviado exitosamente:', emailResponse);
