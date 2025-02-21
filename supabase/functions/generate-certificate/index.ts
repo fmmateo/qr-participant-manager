@@ -44,7 +44,7 @@ serve(async (req) => {
       throw new Error('Faltan recursos necesarios (logo o firma)');
     }
 
-    // Construir el HTML directamente aquí para mejor control
+    // Construir el HTML
     const certificateHtml = `
       <!DOCTYPE html>
       <html>
@@ -56,6 +56,7 @@ serve(async (req) => {
             margin: 0;
             padding: 40px;
             font-family: Arial, sans-serif;
+            background: white;
           }
           .certificate {
             max-width: 1000px;
@@ -63,6 +64,7 @@ serve(async (req) => {
             padding: 40px;
             border: 2px solid #000;
             text-align: center;
+            background: white;
           }
           .logo {
             max-width: 200px;
@@ -113,50 +115,35 @@ serve(async (req) => {
     `;
 
     try {
-      const browserlessApiKey = Deno.env.get('BROWSERLESS_API_KEY');
-      if (!browserlessApiKey) {
-        throw new Error('BROWSERLESS_API_KEY no está configurado');
+      const apiFlashKey = Deno.env.get('APIFLASH_ACCESS_KEY');
+      if (!apiFlashKey) {
+        throw new Error('APIFLASH_ACCESS_KEY no está configurado');
       }
 
-      console.log('Generando PDF...');
+      console.log('Generando imagen del certificado...');
 
-      const pdfResponse = await fetch('https://chrome.browserless.io/pdf', {
-        method: 'POST',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${browserlessApiKey}`
-        },
-        body: JSON.stringify({
-          html: certificateHtml,
-          options: {
-            printBackground: true,
-            format: 'Letter',
-            landscape: true,
-            margin: {
-              top: '0.5in',
-              right: '0.5in',
-              bottom: '0.5in',
-              left: '0.5in'
-            },
-            preferCSSPageSize: false,
-            scale: 0.8
-          }
-        })
-      });
+      // Codificar el HTML para la URL
+      const encodedHtml = encodeURIComponent(certificateHtml);
+      
+      // Construir la URL de APIFlash
+      const apiFlashUrl = `https://api.apiflash.com/v1/urltoimage?access_key=${apiFlashKey}&format=png&width=1200&height=800&response_type=json&url=data:text/html,${encodedHtml}&fresh=true&quality=100&wait_until=networkidle0`;
 
-      if (!pdfResponse.ok) {
-        const errorText = await pdfResponse.text();
-        console.error('Error en respuesta de Browserless:', {
-          status: pdfResponse.status,
-          statusText: pdfResponse.statusText,
+      const imageResponse = await fetch(apiFlashUrl);
+
+      if (!imageResponse.ok) {
+        const errorText = await imageResponse.text();
+        console.error('Error en respuesta de APIFlash:', {
+          status: imageResponse.status,
+          statusText: imageResponse.statusText,
           error: errorText
         });
-        throw new Error(`Error al generar PDF: ${pdfResponse.status} - ${errorText}`);
+        throw new Error(`Error al generar imagen: ${imageResponse.status} - ${errorText}`);
       }
 
-      const pdfBuffer = await pdfResponse.arrayBuffer();
-      const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      const imageResult = await imageResponse.json();
+      const certificateUrl = imageResult.url;
+
+      console.log('Imagen del certificado generada:', certificateUrl);
 
       // Enviar email con Resend
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -178,12 +165,9 @@ serve(async (req) => {
             <h1>¡Felicitaciones ${name}!</h1>
             <p>Has completado exitosamente el programa ${programName}.</p>
             <p>Tu código de verificación es: ${certificateNumber}</p>
-            <p>Adjunto encontrarás tu certificado en formato PDF.</p>
-          `,
-          attachments: [{
-            filename: `certificado-${certificateNumber}.pdf`,
-            content: pdfBase64
-          }]
+            <p>Puedes ver tu certificado en el siguiente enlace:</p>
+            <p><a href="${certificateUrl}" target="_blank">Ver certificado</a></p>
+          `
         })
       });
 
@@ -201,7 +185,8 @@ serve(async (req) => {
         .update({
           sent_email_status: 'SUCCESS',
           sent_at: new Date().toISOString(),
-          verification_url: `https://certificados.example.com/verify/${certificateNumber}`
+          verification_url: certificateUrl, // Guardamos la URL de la imagen como URL de verificación
+          image_url: certificateUrl // Guardamos la URL de la imagen
         })
         .eq('certificate_number', certificateNumber);
 
@@ -209,7 +194,8 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           id: emailResult.id,
-          verificationUrl: `https://certificados.example.com/verify/${certificateNumber}`
+          verificationUrl: certificateUrl,
+          imageUrl: certificateUrl
         }),
         {
           status: 200,
