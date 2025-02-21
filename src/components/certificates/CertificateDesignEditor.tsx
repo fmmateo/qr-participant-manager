@@ -41,7 +41,7 @@ export const CertificateDesignEditor = ({
           .from('certificate_designs')
           .update({
             name,
-            design_params: designParams as any,
+            design_params: designParams,
             updated_at: new Date().toISOString()
           })
           .eq('id', design.id);
@@ -53,7 +53,7 @@ export const CertificateDesignEditor = ({
           .insert([{
             name,
             format: 'html',
-            design_params: designParams as any,
+            design_params: designParams,
             metadata: { version: 1, type: 'professional_certificate' }
           }]);
 

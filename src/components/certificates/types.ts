@@ -19,14 +19,26 @@ export interface Participant {
   email: string;
 }
 
+interface DesignParam {
+  type: string;
+  url?: string;
+  text?: string;
+}
+
+interface DesignParams {
+  logo_url?: DesignParam;
+  signature_url?: DesignParam;
+  title?: DesignParam;
+  template_html?: DesignParam;
+}
+
 export interface CertificateDesign {
   id: string;
   name: string;
   format: string;
   metadata: Json;
-  design_params: Json;
+  design_params: DesignParams;
   template_id?: string;
   created_at: string;
   updated_at: string;
 }
-
