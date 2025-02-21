@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Image } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,13 +28,24 @@ export const CertificateAssetUpload = ({
     try {
       setIsUploading(true);
 
+      // Validar tamaño del archivo (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('El archivo es demasiado grande. Máximo 5MB permitido.');
+      }
+
+      // Crear un nombre de archivo único y seguro
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+
       // Subir el archivo a Supabase Storage
-      const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('certificate-assets')
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Error al subir archivo:', uploadError);
+        throw new Error('Error al subir el archivo. Por favor, inténtalo de nuevo.');
+      }
 
       // Obtener la URL pública del archivo
       const { data: { publicUrl } } = supabase.storage
@@ -47,11 +58,15 @@ export const CertificateAssetUpload = ({
         .insert([
           {
             name: file.name,
-            asset_url: publicUrl
+            asset_url: publicUrl,
+            file_path: fileName
           }
         ]);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Error al guardar en BD:', dbError);
+        throw new Error('Error al guardar la referencia del archivo.');
+      }
 
       toast({
         title: "¡Éxito!",
@@ -60,7 +75,7 @@ export const CertificateAssetUpload = ({
 
       onAssetUploaded(publicUrl);
     } catch (error: any) {
-      console.error('Error al subir archivo:', error);
+      console.error('Error en el proceso de carga:', error);
       toast({
         title: "Error",
         description: error.message || "Error al subir el archivo",
@@ -83,7 +98,7 @@ export const CertificateAssetUpload = ({
           disabled={isUploading}
           className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
         />
-        {isUploading && <Image className="animate-pulse h-5 w-5" />}
+        {isUploading && <Loader2 className="animate-spin h-5 w-5" />}
       </div>
     </div>
   );
