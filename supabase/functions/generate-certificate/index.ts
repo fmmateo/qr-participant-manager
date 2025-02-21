@@ -36,8 +36,9 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Generamos una URL única para verificación
-    const verificationUrl = `${Deno.env.get('SUPABASE_URL')}/verify/${certificateNumber}`;
+    // Generamos una URL de verificación usando la URL base de la aplicación
+    // Esta URL debe coincidir con la configurada en la aplicación para la verificación de certificados
+    const verificationUrl = `${Deno.env.get('SITE_URL')}/certificates/verify/${certificateNumber}`;
 
     // Enviar email con Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
