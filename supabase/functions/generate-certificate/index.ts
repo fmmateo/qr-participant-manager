@@ -16,6 +16,10 @@ serve(async (req) => {
   try {
     console.log('Iniciando generación de certificado...');
     
+    const payload = await req.json();
+    console.log('Payload completo recibido:', payload);
+
+    // Extraer datos del payload
     const {
       name,
       email,
@@ -26,16 +30,7 @@ serve(async (req) => {
       issueDate,
       templateId,
       design
-    } = await req.json();
-
-    console.log('Datos recibidos:', {
-      name,
-      email,
-      certificateNumber,
-      programType,
-      programName,
-      design
-    });
+    } = payload;
 
     // Validar datos requeridos
     if (!email || !name || !certificateNumber || !programName) {
@@ -50,87 +45,103 @@ serve(async (req) => {
     );
 
     // Generar HTML del certificado
-    let certificateHtml = design?.design_params?.template_html?.text || '';
-    
-    if (!certificateHtml) {
+    const templateHtml = design?.design_params?.template_html?.text;
+    if (!templateHtml) {
       throw new Error('El diseño no contiene una plantilla HTML válida');
     }
 
     // Validar recursos del diseño
-    if (!design?.design_params?.logo_url?.url) {
+    const logoUrl = design?.design_params?.logo_url?.url;
+    const signatureUrl = design?.design_params?.signature_url?.url;
+
+    if (!logoUrl) {
       throw new Error('El diseño debe incluir un logo');
     }
 
-    if (!design?.design_params?.signature_url?.url) {
+    if (!signatureUrl) {
       throw new Error('El diseño debe incluir una firma');
     }
 
     // Reemplazar variables en el HTML
-    certificateHtml = certificateHtml
+    let certificateHtml = templateHtml
       .replace(/\[Nombre\]/g, name)
       .replace(/\[Curso\]/g, programName)
       .replace(/\[Fecha\]/g, issueDate)
-      .replace(/\[Código\]/g, certificateNumber);
+      .replace(/\[Código\]/g, certificateNumber)
+      .replace('src="" id="logoEmpresa"', `src="${logoUrl}" id="logoEmpresa"`)
+      .replace('src="" id="firmaDigital"', `src="${signatureUrl}" id="firmaDigital"`);
 
-    // Reemplazar las URLs de los recursos
-    certificateHtml = certificateHtml
-      .replace(
-        'src="" id="logoEmpresa"',
-        `src="${design.design_params.logo_url.url}" id="logoEmpresa"`
-      )
-      .replace(
-        'src="" id="firmaDigital"',
-        `src="${design.design_params.signature_url.url}" id="firmaDigital"`
-      );
+    console.log('HTML generado correctamente');
 
     try {
-      console.log('Generando PDF con Browserless...');
+      console.log('Iniciando conversión a PDF con Browserless...');
       
       // Convertir HTML a PDF usando Browserless
+      const browserlessToken = Deno.env.get('BROWSERLESS_API_KEY');
+      if (!browserlessToken) {
+        throw new Error('BROWSERLESS_API_KEY no está configurado');
+      }
+
       const pdfResponse = await fetch('https://chrome.browserless.io/pdf', {
         method: 'POST',
         headers: {
           'Cache-Control': 'no-cache',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('BROWSERLESS_API_KEY')}`
+          'Authorization': `Bearer ${browserlessToken}`
         },
         body: JSON.stringify({
           html: certificateHtml,
           options: {
             displayHeaderFooter: false,
             printBackground: true,
-            format: 'A4',
+            format: 'Letter',
             landscape: true,
             margin: {
-              top: '1cm',
-              right: '1cm',
-              bottom: '1cm',
-              left: '1cm'
-            }
+              top: '0.4in',
+              right: '0.4in',
+              bottom: '0.4in',
+              left: '0.4in'
+            },
+            scale: 1
+          },
+          gotoOptions: {
+            waitUntil: 'networkidle0',
+            timeout: 30000
           }
         })
       });
 
       if (!pdfResponse.ok) {
         const errorText = await pdfResponse.text();
-        console.error('Error en la respuesta de Browserless:', errorText);
-        throw new Error('Error al generar el PDF del certificado');
+        console.error('Error en respuesta de Browserless:', {
+          status: pdfResponse.status,
+          statusText: pdfResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`Error al generar PDF: ${pdfResponse.status} - ${errorText}`);
       }
 
       const pdfBuffer = await pdfResponse.arrayBuffer();
-      const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      console.log('PDF generado exitosamente, tamaño:', pdfBuffer.byteLength);
 
-      console.log('PDF generado correctamente, enviando email...');
+      const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      console.log('PDF convertido a base64');
 
       // Enviar correo usando Resend
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      if (!resendApiKey) {
+        throw new Error('RESEND_API_KEY no está configurado');
+      }
+
+      console.log('Enviando email con Resend...');
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+          'Authorization': `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'onboarding@resend.dev',
+          from: 'Certificados <onboarding@resend.dev>',
           to: [email],
           subject: `Tu certificado de ${certificateType} - ${programName}`,
           html: `
@@ -148,7 +159,7 @@ serve(async (req) => {
 
       if (!emailResponse.ok) {
         const errorData = await emailResponse.json();
-        console.error('Error en la respuesta de Resend:', errorData);
+        console.error('Error en respuesta de Resend:', errorData);
         throw new Error(`Error al enviar email: ${errorData.message || 'Error desconocido'}`);
       }
 
