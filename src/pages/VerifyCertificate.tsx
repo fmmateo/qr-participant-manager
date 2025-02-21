@@ -20,6 +20,7 @@ const VerifyCertificate = () => {
   useEffect(() => {
     const fetchCertificate = async () => {
       try {
+        // Obtener certificado y datos del participante
         const { data, error } = await supabase
           .from('certificates')
           .select(`
@@ -43,6 +44,11 @@ const VerifyCertificate = () => {
           return;
         }
 
+        // Si el certificado no tiene una imagen guardada, generarla automáticamente
+        if (!data.image_url && certificateRef.current) {
+          await handleImageCapture(data);
+        }
+
         setCertificateData(data);
       } catch (error) {
         console.error('Error al obtener certificado:', error);
@@ -61,31 +67,7 @@ const VerifyCertificate = () => {
     }
   }, [certificateNumber, toast]);
 
-  const handleDownload = async () => {
-    if (certificateData?.image_url) {
-      try {
-        const response = await fetch(certificateData.image_url);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `certificado-${certificateData.certificate_number}.png`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } catch (error) {
-        console.error('Error al descargar el certificado:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo descargar el certificado",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleImageCapture = async () => {
+  const handleImageCapture = async (certData = certificateData) => {
     if (!certificateRef.current) return;
 
     try {
@@ -93,19 +75,17 @@ const VerifyCertificate = () => {
         scale: 2,
         useCORS: true,
         logging: true,
-        backgroundColor: null
+        backgroundColor: '#ffffff'
       });
 
-      // Convertir a blob
       const blob = await new Promise<Blob>((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob as Blob);
         }, 'image/png', 1.0);
       });
 
-      // Subir a Supabase Storage
-      const fileName = `certificates/${certificateData.certificate_number}_${Date.now()}.png`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const fileName = `certificates/${certData.certificate_number}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
         .from('certificates')
         .upload(fileName, blob, {
           contentType: 'image/png',
@@ -114,38 +94,62 @@ const VerifyCertificate = () => {
 
       if (uploadError) throw uploadError;
 
-      // Obtener URL pública
       const { data: publicUrl } = supabase.storage
         .from('certificates')
         .getPublicUrl(fileName);
 
-      // Actualizar el registro del certificado
       const { error: updateError } = await supabase
         .from('certificates')
         .update({
           image_url: publicUrl.publicUrl,
           updated_at: new Date().toISOString()
         })
-        .eq('certificate_number', certificateData.certificate_number);
+        .eq('certificate_number', certData.certificate_number);
 
       if (updateError) throw updateError;
 
       toast({
         title: "¡Éxito!",
-        description: "Certificado capturado y guardado correctamente",
+        description: "Certificado generado correctamente",
       });
 
-      // Actualizar datos locales
       setCertificateData({
-        ...certificateData,
+        ...certData,
         image_url: publicUrl.publicUrl
       });
 
     } catch (error) {
-      console.error('Error al capturar certificado:', error);
+      console.error('Error al generar certificado:', error);
       toast({
         title: "Error",
-        description: "No se pudo capturar el certificado",
+        description: "No se pudo generar el certificado",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!certificateRef.current) return;
+
+    try {
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `certificado-${certificateData.certificate_number}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error al descargar el certificado:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo descargar el certificado",
         variant: "destructive",
       });
     }
@@ -183,16 +187,10 @@ const VerifyCertificate = () => {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Verificación de Certificado</h1>
             <div className="flex gap-2">
-              <Button onClick={handleImageCapture} variant="outline">
-                <Camera className="mr-2 h-4 w-4" />
-                Capturar Certificado
+              <Button onClick={handleDownload} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Descargar Certificado
               </Button>
-              {certificateData.image_url && (
-                <Button onClick={handleDownload} variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Descargar Certificado
-                </Button>
-              )}
               <Button onClick={() => navigate('/')} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Volver al inicio
