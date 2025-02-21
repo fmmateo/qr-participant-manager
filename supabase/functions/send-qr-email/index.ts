@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Resend } from "npm:resend@2.0.0";
-import * as base64 from "https://deno.land/std@0.190.0/encoding/base64.ts";
+import QRCode from "npm:qrcode";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, qrCode } = await req.json()
+    const { name, email, qrCode } = await req.json();
 
     if (!name || !email || !qrCode) {
       console.error('Datos faltantes:', { name, email, qrCode });
@@ -25,17 +25,25 @@ serve(async (req) => {
 
     console.log('Iniciando proceso de envío de email para:', { name, email });
 
-    // Crear contenido del QR como objeto
-    const qrContent = {
+    // Crear contenido del QR
+    const qrData = JSON.stringify({
       name,
       email,
       qrCode,
       timestamp: new Date().toISOString()
-    };
-
-    console.log('Contenido del QR:', qrContent);
+    });
 
     try {
+      // Generar QR como string base64
+      const qrDataUrl = await QRCode.toDataURL(qrData, {
+        type: 'image/png',
+        width: 300,
+        margin: 2,
+        errorCorrectionLevel: 'H'
+      });
+
+      console.log('QR generado exitosamente');
+
       const emailResponse = await resend.emails.send({
         from: "Registro <registro@twinsrd.com>",
         to: email,
@@ -43,24 +51,28 @@ serve(async (req) => {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #333; text-align: center;">¡Bienvenido/a ${name}!</h1>
-            <p style="color: #666; font-size: 16px;">Gracias por registrarte. Para registrar tu asistencia, usa este código: ${qrCode}</p>
-            <div style="text-align: center; margin: 30px 0; background-color: #f5f5f5; padding: 20px; border-radius: 8px;">
-              <p style="font-size: 24px; font-weight: bold; color: #333;">${qrCode}</p>
+            <p style="color: #666; font-size: 16px; text-align: center;">
+              Aquí está tu código QR personal para registrar tu asistencia:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <img src="${qrDataUrl}" alt="Tu código QR" style="max-width: 300px; width: 100%; height: auto;"/>
             </div>
+            <p style="color: #666; font-size: 14px; text-align: center;">
+              Tu código de registro es: <strong>${qrCode}</strong>
+            </p>
             <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <p style="color: #333; font-weight: bold;">Instrucciones:</p>
               <ol style="color: #666;">
-                <li>Guarda este código</li>
-                <li>Muestra el código al llegar a cada sesión</li>
-                <li>El personal registrará tu asistencia con este código</li>
+                <li>Guarda este código QR en tu teléfono o imprímelo</li>
+                <li>Muestra el código QR al llegar a cada sesión</li>
+                <li>El personal escaneará tu código para registrar tu asistencia</li>
               </ol>
             </div>
-            <p style="color: #666; text-align: center; margin-top: 30px;">¡Te esperamos!</p>
           </div>
         `
       });
 
-      console.log('Email enviado exitosamente:', emailResponse);
+      console.log('Email enviado exitosamente');
 
       return new Response(
         JSON.stringify({ success: true, data: emailResponse }),
