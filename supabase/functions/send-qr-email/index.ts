@@ -11,6 +11,7 @@ const corsHeaders = {
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -25,18 +26,32 @@ serve(async (req) => {
 
     console.log('Iniciando proceso de envío de email para:', { name, email });
 
-    // Crear contenido del QR
-    const qrData = JSON.stringify({
-      name,
-      email,
-      qrCode,
-      timestamp: new Date().toISOString()
-    });
-
     try {
-      // Generar QR como string base64
-      const qrDataUrl = await QRCode.toDataURL(qrData);
-      console.log('QR generado exitosamente, longitud del QR:', qrDataUrl.length);
+      // Generar QR con opciones optimizadas para escaneo
+      const qrOptions = {
+        errorCorrectionLevel: 'H',
+        type: 'image/png',
+        margin: 1,
+        width: 400,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      };
+
+      // Crear el contenido del QR como un objeto simple
+      const qrContent = JSON.stringify({
+        name,
+        email,
+        qrCode,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('Generando QR con contenido:', qrContent);
+
+      // Generar el QR como una URL de datos
+      const qrDataUrl = await QRCode.toDataURL(qrContent, qrOptions);
+      console.log('QR generado exitosamente, longitud:', qrDataUrl.length);
 
       const emailResponse = await resend.emails.send({
         from: "Asistencia <onboarding@resend.dev>",
@@ -49,7 +64,7 @@ serve(async (req) => {
               Aquí está tu código QR personal para registrar tu asistencia:
             </p>
             <div style="text-align: center; margin: 30px 0;">
-              <img src="${qrDataUrl}" alt="Tu código QR" style="max-width: 300px; width: 100%; height: auto;"/>
+              <img src="${qrDataUrl}" alt="Tu código QR" style="max-width: 400px; width: 100%; height: auto;"/>
             </div>
             <p style="color: #666; font-size: 14px; text-align: center;">
               Tu código de registro es: <strong>${qrCode}</strong>
