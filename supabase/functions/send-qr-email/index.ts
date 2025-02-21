@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Resend } from "npm:resend@2.0.0";
-import QRCode from 'npm:qrcode@1.5.3'
+import * as base64 from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,68 +18,74 @@ serve(async (req) => {
   try {
     const { name, email, qrCode } = await req.json()
 
-    console.log('Iniciando generación de QR para:', { name, email, qrCode });
+    if (!name || !email || !qrCode) {
+      console.error('Datos faltantes:', { name, email, qrCode });
+      throw new Error('Faltan datos requeridos');
+    }
 
-    // Generar QR directamente como PNG en Buffer
-    const qrBuffer = await QRCode.toBuffer(JSON.stringify({
+    console.log('Iniciando proceso de envío de email para:', { name, email });
+
+    // Crear contenido del QR como objeto
+    const qrContent = {
       name,
       email,
       qrCode,
       timestamp: new Date().toISOString()
-    }), {
-      type: 'png',
-      width: 300,
-      margin: 2,
-      errorCorrectionLevel: 'H'
-    });
+    };
 
-    // Convertir el buffer a Base64
-    const base64QR = Buffer.from(qrBuffer).toString('base64');
+    console.log('Contenido del QR:', qrContent);
 
-    console.log('QR generado exitosamente como PNG');
-
-    const emailResponse = await resend.emails.send({
-      from: "Registro <registro@twinsrd.com>",
-      to: email,
-      subject: "Tu Código QR para Registro de Asistencia",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333; text-align: center;">¡Bienvenido/a ${name}!</h1>
-          <p style="color: #666; font-size: 16px;">Gracias por registrarte. Aquí está tu código QR personal para registrar tu asistencia:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <img src="data:image/png;base64,${base64QR}" alt="Tu código QR" style="max-width: 300px; width: 100%; height: auto;"/>
+    try {
+      const emailResponse = await resend.emails.send({
+        from: "Registro <registro@twinsrd.com>",
+        to: email,
+        subject: "Tu Código QR para Registro de Asistencia",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #333; text-align: center;">¡Bienvenido/a ${name}!</h1>
+            <p style="color: #666; font-size: 16px;">Gracias por registrarte. Para registrar tu asistencia, usa este código: ${qrCode}</p>
+            <div style="text-align: center; margin: 30px 0; background-color: #f5f5f5; padding: 20px; border-radius: 8px;">
+              <p style="font-size: 24px; font-weight: bold; color: #333;">${qrCode}</p>
+            </div>
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="color: #333; font-weight: bold;">Instrucciones:</p>
+              <ol style="color: #666;">
+                <li>Guarda este código</li>
+                <li>Muestra el código al llegar a cada sesión</li>
+                <li>El personal registrará tu asistencia con este código</li>
+              </ol>
+            </div>
+            <p style="color: #666; text-align: center; margin-top: 30px;">¡Te esperamos!</p>
           </div>
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="color: #333; font-weight: bold;">Instrucciones:</p>
-            <ol style="color: #666;">
-              <li>Guarda este código QR en tu teléfono o imprímelo</li>
-              <li>Muestra el código al llegar a cada sesión</li>
-              <li>El personal escaneará tu código para registrar tu asistencia</li>
-            </ol>
-          </div>
-          <p style="color: #666; text-align: center; margin-top: 30px;">¡Te esperamos!</p>
-        </div>
-      `
-    });
+        `
+      });
 
-    console.log('Email enviado exitosamente:', emailResponse);
+      console.log('Email enviado exitosamente:', emailResponse);
 
-    return new Response(
-      JSON.stringify(emailResponse),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      },
-    )
+      return new Response(
+        JSON.stringify({ success: true, data: emailResponse }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        },
+      );
+
+    } catch (emailError) {
+      console.error('Error enviando email:', emailError);
+      throw emailError;
+    }
 
   } catch (error) {
     console.error('Error en send-qr-email:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.toString()
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
       },
-    )
+    );
   }
 })
