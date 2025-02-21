@@ -36,8 +36,8 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
 
-    // Configurar transporte SMTP
-    const transporter = nodemailer.createTransport({
+    // Verificar configuración SMTP
+    const smtpConfig = {
       host: Deno.env.get("SMTP_HOST"),
       port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
       secure: Deno.env.get("SMTP_SECURE") === "true",
@@ -45,7 +45,27 @@ serve(async (req) => {
         user: Deno.env.get("SMTP_USER"),
         pass: Deno.env.get("SMTP_PASS")
       }
+    };
+
+    console.log('Configuración SMTP:', {
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      user: smtpConfig.auth.user,
+      // No logueamos la contraseña por seguridad
     });
+
+    // Configurar transporte SMTP
+    const transporter = nodemailer.createTransport(smtpConfig);
+
+    // Verificar conexión SMTP
+    try {
+      await transporter.verify();
+      console.log('Conexión SMTP verificada exitosamente');
+    } catch (smtpError) {
+      console.error('Error al verificar conexión SMTP:', smtpError);
+      throw new Error('No se pudo establecer conexión con el servidor SMTP');
+    }
 
     // Generar PDF
     const doc = new PDFDocument({
@@ -75,10 +95,10 @@ serve(async (req) => {
     doc.stroke();
 
     // Logo de la empresa
-    if (design?.logo_url?.url) {
+    if (design?.design_params?.logo_url?.url) {
       try {
-        console.log('Cargando logo desde:', design.logo_url.url);
-        const logoResponse = await fetch(design.logo_url.url);
+        console.log('Cargando logo desde:', design.design_params.logo_url.url);
+        const logoResponse = await fetch(design.design_params.logo_url.url);
         const logoBuffer = await logoResponse.arrayBuffer();
         doc.image(
           new Uint8Array(logoBuffer),
@@ -138,10 +158,10 @@ serve(async (req) => {
        });
 
     // Firma
-    if (design?.signature_url?.url) {
+    if (design?.design_params?.signature_url?.url) {
       try {
-        console.log('Cargando firma desde:', design.signature_url.url);
-        const signatureResponse = await fetch(design.signature_url.url);
+        console.log('Cargando firma desde:', design.design_params.signature_url.url);
+        const signatureResponse = await fetch(design.design_params.signature_url.url);
         const signatureBuffer = await signatureResponse.arrayBuffer();
         doc.image(
           new Uint8Array(signatureBuffer),
