@@ -102,13 +102,13 @@ export const issueCertificate = async (
       issueDate,
       templateId: selectedTemplate.id,
       templateUrl: template.template_url,
-      design: design.design_params
+      design
     };
 
     console.log('Enviando payload a la función edge:', payload);
 
     // Llamar a la función edge
-    const { data: response, error: edgeError } = await supabase.functions.invoke(
+    const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
       'generate-certificate',
       {
         body: payload
@@ -117,9 +117,14 @@ export const issueCertificate = async (
 
     console.log('Respuesta de la función edge:', response);
 
-    if (edgeError || !response?.success) {
-      const errorMessage = edgeError?.message || response?.error || 'Error desconocido';
-      console.error('Error en la función edge:', errorMessage);
+    if (edgeFunctionError) {
+      console.error('Error en la función edge:', edgeFunctionError);
+      throw new Error(`Error en la función edge: ${edgeFunctionError.message}`);
+    }
+
+    if (!response?.success) {
+      const errorMessage = response?.error || 'Error desconocido al generar el certificado';
+      console.error('Error en la generación del certificado:', errorMessage);
       
       await supabase
         .from('certificates')
@@ -130,7 +135,7 @@ export const issueCertificate = async (
         })
         .eq('certificate_number', certificateNumber);
 
-      throw new Error(`Error al enviar el certificado: ${errorMessage}`);
+      throw new Error(`Error al generar el certificado: ${errorMessage}`);
     }
 
     // Actualizar certificado con éxito
