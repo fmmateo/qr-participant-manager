@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,7 +60,7 @@ serve(async (req) => {
             background: white;
           }
           .certificate {
-            max-width: 1000px;
+            width: 1000px;
             margin: 0 auto;
             padding: 40px;
             border: 2px solid #000;
@@ -67,11 +68,13 @@ serve(async (req) => {
             background: white;
           }
           .logo {
-            max-width: 200px;
+            width: 200px;
+            height: auto;
             margin-bottom: 20px;
           }
           .signature {
-            max-width: 150px;
+            width: 150px;
+            height: auto;
             margin-top: 40px;
           }
           h1 {
@@ -115,35 +118,64 @@ serve(async (req) => {
     `;
 
     try {
-      const apiFlashKey = Deno.env.get('APIFLASH_ACCESS_KEY');
-      if (!apiFlashKey) {
-        throw new Error('APIFLASH_ACCESS_KEY no está configurado');
-      }
+      console.log('Iniciando generación de imagen...');
 
-      console.log('Generando imagen del certificado...');
+      // Iniciar Puppeteer
+      const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
 
-      // Codificar el HTML para la URL
-      const encodedHtml = encodeURIComponent(certificateHtml);
+      const page = await browser.newPage();
       
-      // Construir la URL de APIFlash
-      const apiFlashUrl = `https://api.apiflash.com/v1/urltoimage?access_key=${apiFlashKey}&format=png&width=1200&height=800&response_type=json&url=data:text/html,${encodedHtml}&fresh=true&quality=100&wait_until=networkidle0`;
+      // Configurar viewport para el certificado
+      await page.setViewport({
+        width: 1100,
+        height: 800,
+        deviceScaleFactor: 2
+      });
 
-      const imageResponse = await fetch(apiFlashUrl);
+      // Cargar el HTML
+      await page.setContent(certificateHtml, {
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
 
-      if (!imageResponse.ok) {
-        const errorText = await imageResponse.text();
-        console.error('Error en respuesta de APIFlash:', {
-          status: imageResponse.status,
-          statusText: imageResponse.statusText,
-          error: errorText
-        });
-        throw new Error(`Error al generar imagen: ${imageResponse.status} - ${errorText}`);
+      // Generar la imagen
+      const screenshotBuffer = await page.screenshot({
+        type: 'png',
+        fullPage: true,
+        encoding: 'binary'
+      });
+
+      await browser.close();
+
+      // Convertir el buffer a base64
+      const imageBase64 = btoa(
+        new Uint8Array(screenshotBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      // Subir la imagen a Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabaseClient
+        .storage
+        .from('certificates')
+        .upload(
+          `${certificateNumber}.png`, 
+          decode(imageBase64),
+          {
+            contentType: 'image/png',
+            cacheControl: '3600'
+          }
+        );
+
+      if (uploadError) {
+        throw new Error(`Error al subir imagen: ${uploadError.message}`);
       }
 
-      const imageResult = await imageResponse.json();
-      const certificateUrl = imageResult.url;
-
-      console.log('Imagen del certificado generada:', certificateUrl);
+      // Obtener URL pública de la imagen
+      const { data: { publicUrl } } = supabaseClient
+        .storage
+        .from('certificates')
+        .getPublicUrl(`${certificateNumber}.png`);
 
       // Enviar email con Resend
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -166,7 +198,7 @@ serve(async (req) => {
             <p>Has completado exitosamente el programa ${programName}.</p>
             <p>Tu código de verificación es: ${certificateNumber}</p>
             <p>Puedes ver tu certificado en el siguiente enlace:</p>
-            <p><a href="${certificateUrl}" target="_blank">Ver certificado</a></p>
+            <p><a href="${publicUrl}" target="_blank">Ver certificado</a></p>
           `
         })
       });
@@ -185,8 +217,8 @@ serve(async (req) => {
         .update({
           sent_email_status: 'SUCCESS',
           sent_at: new Date().toISOString(),
-          verification_url: certificateUrl, // Guardamos la URL de la imagen como URL de verificación
-          image_url: certificateUrl // Guardamos la URL de la imagen
+          verification_url: publicUrl,
+          image_url: publicUrl
         })
         .eq('certificate_number', certificateNumber);
 
@@ -194,8 +226,8 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           id: emailResult.id,
-          verificationUrl: certificateUrl,
-          imageUrl: certificateUrl
+          verificationUrl: publicUrl,
+          imageUrl: publicUrl
         }),
         {
           status: 200,
