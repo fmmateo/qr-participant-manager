@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 import html2canvas from 'html2canvas';
@@ -18,10 +19,12 @@ const generateCertificateHTML = (participant: Participant, program: Program, cer
         <h3 style="font-size: 22px; font-weight: bold; color: #000000; margin: 15px 0;">${program.name}</h3>
         <p style="font-size: 16px; color: #000000; margin: 20px 0;">Fecha de emisión: ${issueDate}</p>
         <div style="margin-top: 80px; text-align: center;">
-          <img src="${design.design_params.signature_url?.url}" alt="Firma" style="width: 150px; margin-bottom: 10px;">
-          <p style="font-size: 16px; font-weight: bold; border-top: 2px solid #000000; width: 250px; margin: 10px auto; padding-top: 10px; color: #000000;">
-            Director Académico
-          </p>
+          <div style="position: relative; display: inline-block;">
+            <img src="${design.design_params.signature_url?.url}" alt="Firma" style="width: 150px; position: absolute; bottom: 20px; left: 50px;">
+            <p style="font-size: 16px; font-weight: bold; border-top: 2px solid #000000; width: 250px; margin: 10px auto; padding-top: 10px; color: #000000;">
+              Director Académico
+            </p>
+          </div>
         </div>
         <p style="font-size: 12px; color: #000000; position: absolute; bottom: 15px; right: 15px;">
           Número de certificado: ${certificateNumber}
