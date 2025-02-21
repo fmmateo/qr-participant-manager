@@ -1,9 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import nodemailer from "npm:nodemailer";
 import PDFDocument from "npm:pdfkit";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +35,17 @@ serve(async (req) => {
     if (!email || !name || !certificateNumber || !programName) {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
+
+    // Configurar transporte SMTP
+    const transporter = nodemailer.createTransport({
+      host: Deno.env.get("SMTP_HOST"),
+      port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
+      secure: Deno.env.get("SMTP_SECURE") === "true",
+      auth: {
+        user: Deno.env.get("SMTP_USER"),
+        pass: Deno.env.get("SMTP_PASS")
+      }
+    });
 
     // Crear el PDF
     const doc = new PDFDocument({
@@ -163,10 +172,10 @@ serve(async (req) => {
     // Esperar a que el PDF se complete
     const pdfBuffer = await pdfPromise;
 
-    // Enviar el correo con el PDF adjunto
-    const emailResponse = await resend.emails.send({
-      from: 'Certificados <certificados@resend.dev>',
-      to: [email],
+    // Enviar el correo con el PDF adjunto usando Nodemailer
+    const info = await transporter.sendMail({
+      from: `"Certificados" <${Deno.env.get("SMTP_USER")}>`,
+      to: email,
       subject: `Tu certificado de ${programName}`,
       html: `
         <h1>¡Felicitaciones ${name}!</h1>
@@ -179,12 +188,12 @@ serve(async (req) => {
       }]
     });
 
-    console.log('Respuesta del envío de correo:', emailResponse);
+    console.log('Mensaje enviado:', info);
 
     return new Response(
       JSON.stringify({
         success: true,
-        id: emailResponse.id,
+        id: info.messageId,
         certificateUrl: `https://example.com/certificates/${certificateNumber}`,
         verificationUrl: `https://example.com/verify/${certificateNumber}`
       }),
