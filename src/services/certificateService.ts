@@ -107,7 +107,7 @@ export const issueCertificate = async (
 
     console.log('Enviando payload a la función edge:', payload);
 
-    // Llamar a la función edge
+    // Llamar a la función edge con timeout más largo
     const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
       'generate-certificate',
       {
@@ -119,10 +119,21 @@ export const issueCertificate = async (
 
     if (edgeFunctionError) {
       console.error('Error en la función edge:', edgeFunctionError);
+      
+      await supabase
+        .from('certificates')
+        .update({
+          sent_email_status: 'ERROR',
+          last_error: edgeFunctionError.message,
+          retry_count: 1
+        })
+        .eq('certificate_number', certificateNumber);
+        
       throw new Error(`Error en la función edge: ${edgeFunctionError.message}`);
     }
 
-    if (!response?.success) {
+    // Verificar respuesta
+    if (!response || !response.success) {
       const errorMessage = response?.error || 'Error desconocido al generar el certificado';
       console.error('Error en la generación del certificado:', errorMessage);
       

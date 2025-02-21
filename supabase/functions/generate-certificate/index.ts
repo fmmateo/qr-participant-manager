@@ -25,18 +25,20 @@ serve(async (req) => {
       design
     } = await req.json();
 
-    console.log('Recibiendo solicitud de generación de certificado:', {
-      certificateNumber,
+    console.log('Datos recibidos:', {
+      name,
       email,
+      certificateNumber,
       programName,
-      design
+      designParams: design?.design_params
     });
 
+    // Validar datos requeridos
     if (!email || !name || !certificateNumber || !programName) {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
 
-    // Verificar configuración SMTP
+    // Configuración SMTP
     const smtpConfig = {
       host: Deno.env.get("SMTP_HOST"),
       port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
@@ -44,6 +46,9 @@ serve(async (req) => {
       auth: {
         user: Deno.env.get("SMTP_USER"),
         pass: Deno.env.get("SMTP_PASS")
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     };
 
@@ -51,20 +56,19 @@ serve(async (req) => {
       host: smtpConfig.host,
       port: smtpConfig.port,
       secure: smtpConfig.secure,
-      user: smtpConfig.auth.user,
-      // No logueamos la contraseña por seguridad
+      user: smtpConfig.auth.user
     });
 
-    // Configurar transporte SMTP
+    // Crear transporte SMTP
     const transporter = nodemailer.createTransport(smtpConfig);
 
     // Verificar conexión SMTP
     try {
       await transporter.verify();
       console.log('Conexión SMTP verificada exitosamente');
-    } catch (smtpError) {
-      console.error('Error al verificar conexión SMTP:', smtpError);
-      throw new Error('No se pudo establecer conexión con el servidor SMTP');
+    } catch (smtpError: any) {
+      console.error('Error de conexión SMTP:', smtpError.message);
+      throw new Error(`Error de conexión SMTP: ${smtpError.message}`);
     }
 
     // Generar PDF
@@ -77,7 +81,6 @@ serve(async (req) => {
     const chunks: Uint8Array[] = [];
     doc.on('data', (chunk) => chunks.push(chunk));
 
-    // Promesa para esperar a que el PDF se complete
     const pdfPromise = new Promise((resolve) => {
       doc.on('end', () => {
         const pdfBuffer = new Uint8Array(Buffer.concat(chunks));
@@ -85,20 +88,22 @@ serve(async (req) => {
       });
     });
 
-    // Configurar fuentes y estilos
+    // Configurar diseño del PDF
     doc.font('Times-Roman');
 
-    // Dibujar borde dorado
+    // Borde dorado
     doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60)
        .lineWidth(15)
        .strokeColor('#b8860b');
     doc.stroke();
 
-    // Logo de la empresa
-    if (design?.design_params?.logo_url?.url) {
+    // Logo
+    const logoUrl = design?.design_params?.logo_url?.url;
+    if (logoUrl) {
       try {
-        console.log('Cargando logo desde:', design.design_params.logo_url.url);
-        const logoResponse = await fetch(design.design_params.logo_url.url);
+        console.log('Cargando logo desde:', logoUrl);
+        const logoResponse = await fetch(logoUrl);
+        if (!logoResponse.ok) throw new Error('Error al cargar el logo');
         const logoBuffer = await logoResponse.arrayBuffer();
         doc.image(
           new Uint8Array(logoBuffer),
@@ -111,10 +116,11 @@ serve(async (req) => {
       }
     }
 
-    // Título
+    // Título personalizado o predeterminado
+    const titleText = design?.design_params?.title?.text || 'CERTIFICADO PROFESIONAL';
     doc.fontSize(42)
        .fillColor('#b8860b')
-       .text('CERTIFICADO PROFESIONAL', 0, 150, {
+       .text(titleText, 0, 150, {
          align: 'center'
        });
 
@@ -134,7 +140,7 @@ serve(async (req) => {
        .moveDown();
 
     doc.fontSize(20)
-       .text('Ha completado exitosamente el programa:', {
+       .text(`Ha completado exitosamente el ${programType}:`, {
          align: 'center'
        })
        .moveDown();
@@ -146,9 +152,8 @@ serve(async (req) => {
        .moveDown();
 
     doc.fontSize(18)
-       .text('Habiendo demostrado los conocimientos y competencias requeridas para su aprobación, cumpliendo con todos los requisitos establecidos por la institución.', {
-         align: 'center',
-         width: 500
+       .text(`Certificado de ${certificateType}`, {
+         align: 'center'
        })
        .moveDown();
 
@@ -158,10 +163,12 @@ serve(async (req) => {
        });
 
     // Firma
-    if (design?.design_params?.signature_url?.url) {
+    const signatureUrl = design?.design_params?.signature_url?.url;
+    if (signatureUrl) {
       try {
-        console.log('Cargando firma desde:', design.design_params.signature_url.url);
-        const signatureResponse = await fetch(design.design_params.signature_url.url);
+        console.log('Cargando firma desde:', signatureUrl);
+        const signatureResponse = await fetch(signatureUrl);
+        if (!signatureResponse.ok) throw new Error('Error al cargar la firma');
         const signatureBuffer = await signatureResponse.arrayBuffer();
         doc.image(
           new Uint8Array(signatureBuffer),
@@ -180,10 +187,11 @@ serve(async (req) => {
          doc.page.height - 120,
          { width: 300, align: 'center' });
 
-    // QR Code
+    // Código QR
     try {
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(certificateNumber)}`;
       const qrResponse = await fetch(qrUrl);
+      if (!qrResponse.ok) throw new Error('Error al generar QR');
       const qrBuffer = await qrResponse.arrayBuffer();
       doc.image(
         new Uint8Array(qrBuffer),
@@ -195,6 +203,7 @@ serve(async (req) => {
       console.error('Error al generar código QR:', error);
     }
 
+    // Código de verificación
     doc.fontSize(14)
        .text('Código de verificación:',
          doc.page.width - 200,
@@ -205,19 +214,19 @@ serve(async (req) => {
          doc.page.height - 35,
          { width: 200, align: 'right' });
 
-    // Finalizar el PDF
+    // Finalizar PDF
     doc.end();
 
-    // Esperar a que el PDF se complete
+    // Esperar a que se genere el PDF
     const pdfBuffer = await pdfPromise;
 
-    // Enviar el correo con el PDF adjunto
-    console.log('Enviando correo electrónico...');
+    // Enviar correo
+    console.log('Preparando envío de correo...');
     
     const info = await transporter.sendMail({
       from: `"Certificados" <${Deno.env.get("SMTP_USER")}>`,
       to: email,
-      subject: `Tu certificado de ${programName}`,
+      subject: `Tu certificado de ${certificateType} - ${programName}`,
       html: `
         <h1>¡Felicitaciones ${name}!</h1>
         <p>Adjunto encontrarás tu certificado de ${certificateType} para el programa ${programName}.</p>
@@ -246,7 +255,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error detallado en generate-certificate:', error);
+    console.error('Error en generate-certificate:', error);
     
     return new Response(
       JSON.stringify({
@@ -254,7 +263,7 @@ serve(async (req) => {
         error: error.message || 'Error desconocido al generar el certificado'
       }),
       {
-        status: 400,
+        status: 500,
         headers: { 
           "Content-Type": "application/json",
           ...corsHeaders
