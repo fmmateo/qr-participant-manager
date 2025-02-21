@@ -10,14 +10,14 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             font-family: 'Times New Roman', serif;
             text-align: center;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-color: #FFFFFF;
         }
         .certificado {
             border: 15px solid #b8860b;
             padding: 50px;
             width: 900px;
             margin: auto;
-            background: white;
+            background: #FFFFFF;
             position: relative;
             box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3);
             border-radius: 10px;
@@ -25,17 +25,16 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
         .header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             margin-bottom: 40px;
+            gap: 20px;
         }
         .logo {
             width: 150px;
             height: auto;
         }
         .title {
-            flex-grow: 1;
             text-align: center;
-            padding: 0 20px;
         }
         h1 {
             font-size: 42px;
@@ -43,23 +42,27 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             color: #b8860b;
             margin-bottom: 15px;
             text-transform: uppercase;
+            text-align: center;
         }
         h2 {
             font-size: 32px;
             font-weight: bold;
             color: #333;
             margin: 20px 0;
+            text-align: center;
         }
         h3 {
             font-size: 24px;
             font-weight: normal;
             color: #333;
+            text-align: center;
         }
         p {
             font-size: 20px;
             color: #444;
             margin: 15px 0;
             line-height: 1.5;
+            text-align: center;
         }
         .descripcion {
             font-size: 18px;
@@ -67,6 +70,7 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             margin: 25px auto;
             max-width: 80%;
             line-height: 1.6;
+            text-align: center;
         }
         .firma {
             margin-top: 60px;
@@ -90,7 +94,10 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             position: absolute;
             bottom: 30px;
             right: 30px;
-            text-align: center;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
         .qr-container img {
             width: 120px;
@@ -101,6 +108,7 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             font-size: 14px;
             font-weight: bold;
             color: #555;
+            text-align: right;
         }
     </style>
 </head>
