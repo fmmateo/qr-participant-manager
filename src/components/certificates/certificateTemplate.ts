@@ -4,7 +4,7 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificado</title>
+    <title>Certificado Profesional</title>
     <style>
         body {
             font-family: 'Times New Roman', serif;
@@ -25,70 +25,82 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
         .header {
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            margin-bottom: 40px;
         }
         .logo {
-            width: 120px;
-            margin-right: 20px;
+            width: 150px;
+            height: auto;
         }
         .title {
             flex-grow: 1;
             text-align: center;
+            padding: 0 20px;
         }
         h1 {
-            font-size: 40px;
+            font-size: 42px;
             font-weight: bold;
             color: #b8860b;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
         }
         h2 {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
+            color: #333;
+            margin: 20px 0;
         }
         h3 {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: normal;
             color: #333;
         }
         p {
-            font-size: 18px;
+            font-size: 20px;
             color: #444;
-            margin: 10px 0;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+        .descripcion {
+            font-size: 18px;
+            color: #666;
+            margin: 25px auto;
+            max-width: 80%;
+            line-height: 1.6;
         }
         .firma {
-            margin-top: 50px;
+            margin-top: 60px;
             text-align: center;
             font-size: 18px;
             font-weight: bold;
             border-top: 2px solid #000;
             width: 300px;
-            margin: 50px auto 0;
-            padding-top: 5px;
+            margin: 60px auto 0;
+            padding-top: 10px;
             position: relative;
         }
         .firma img {
             width: 200px;
             position: absolute;
-            top: -40px;
+            top: -50px;
             left: 50%;
             transform: translateX(-50%);
         }
         .qr-container {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 30px;
+            right: 30px;
             text-align: center;
         }
         .qr-container img {
             width: 120px;
             height: 120px;
+            margin-bottom: 10px;
         }
         .codigo-emision {
             font-size: 14px;
             font-weight: bold;
             color: #555;
-            margin-top: 5px;
         }
     </style>
 </head>
@@ -97,21 +109,27 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
         <div class="header">
             <img class="logo" id="logoEmpresa" src="" alt="Logo Empresa">
             <div class="title">
-                <h1>Certificado de Participación</h1>
+                <h1>Certificado Profesional</h1>
             </div>
         </div>
-        <p>Este certificado se otorga a:</p>
-        <h2 id="nombreParticipante">[Nombre]</h2>
-        <p>Por su destacada participación en el curso:</p>
-        <h3 id="curso"><strong>[Curso]</strong></h3>
-        <p>Fecha de emisión: <span id="fecha">[Fecha]</span></p>
-        <div class="firma">
-            <img id="firmaDigital" src="" alt="Firma Digital">
-            Firma del Instructor
-        </div>
-        <div class="qr-container">
-            <img id="codigoQR" src="" alt="Código QR">
-            <p class="codigo-emision">Código de emisión: <span id="codigoEmision">[Código]</span></p>
+        <div class="contenido">
+            <p>Por medio de la presente, se certifica que:</p>
+            <h2 id="nombreParticipante">[Nombre]</h2>
+            <p>Ha completado exitosamente el programa:</p>
+            <h3 id="curso"><strong>[Curso]</strong></h3>
+            <p class="descripcion">
+                Habiendo demostrado los conocimientos y competencias requeridas para su aprobación,
+                cumpliendo con todos los requisitos establecidos por la institución.
+            </p>
+            <p>Fecha de emisión: <span id="fecha">[Fecha]</span></p>
+            <div class="firma">
+                <img id="firmaDigital" src="" alt="Firma Digital">
+                <p>Director Académico</p>
+            </div>
+            <div class="qr-container">
+                <img id="codigoQR" src="" alt="Código QR">
+                <p class="codigo-emision">Código de verificación:<br><span id="codigoEmision">[Código]</span></p>
+            </div>
         </div>
     </div>
 </body>
