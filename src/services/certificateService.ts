@@ -1,116 +1,32 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 import html2canvas from 'html2canvas';
 
 const generateCertificateHTML = (participant: Participant, program: Program, certType: string, issueDate: string, certificateNumber: string, design: CertificateDesign) => {
   const certificateHTML = `
-    <div style="
-      font-family: 'Times New Roman', serif; 
-      text-align: center; 
-      padding: 20px;
-      background-color: #FFFFFF;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100%;
-    ">
-      <div style="
-        border: 15px solid #b8860b; 
-        padding: 50px; 
-        width: 800px; 
-        margin: 0 auto;
-        background: white; 
-        position: relative;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      ">
-        <div style="
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          margin-bottom: 40px;
-          flex-direction: column;
-        ">
-          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="
-            width: 150px; 
-            margin-bottom: 20px;
-          ">
-          <div style="text-align: center; width: 100%;">
-            <h1 style="
-              font-size: 42px; 
-              font-weight: bold; 
-              color: #b8860b; 
-              margin-bottom: 15px; 
-              text-transform: uppercase;
-              text-align: center;
-              width: 100%;
-            ">
+    <div style="font-family: 'Times New Roman', serif; text-align: center; padding: 20px;">
+      <div style="border: 15px solid #b8860b; padding: 50px; width: 800px; margin: auto; background: white; position: relative;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 40px;">
+          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 150px; margin-right: 20px;">
+          <div style="text-align: center;">
+            <h1 style="font-size: 42px; font-weight: bold; color: #b8860b; margin-bottom: 15px; text-transform: uppercase;">
               Certificado de ${certType}
             </h1>
           </div>
         </div>
-        <p style="
-          font-size: 20px; 
-          color: #444; 
-          margin: 15px 0;
-          text-align: center;
-        ">Se certifica que:</p>
-        <h2 style="
-          font-size: 32px; 
-          font-weight: bold; 
-          color: #333; 
-          margin: 20px 0;
-          text-align: center;
-        ">${participant.name}</h2>
-        <p style="
-          font-size: 20px; 
-          color: #444; 
-          margin: 15px 0;
-          text-align: center;
-        ">Ha completado satisfactoriamente el programa:</p>
-        <h3 style="
-          font-size: 24px; 
-          font-weight: bold; 
-          color: #333; 
-          margin: 20px 0;
-          text-align: center;
-        ">${program.name}</h3>
-        <p style="
-          font-size: 18px; 
-          color: #666; 
-          margin: 25px 0;
-          text-align: center;
-        ">Fecha de emisión: ${issueDate}</p>
-        <div style="
-          margin-top: 60px; 
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        ">
-          <img src="${design.design_params.signature_url?.url}" alt="Firma" style="
-            width: 200px; 
-            margin-bottom: 10px;
-          ">
-          <p style="
-            font-size: 18px; 
-            font-weight: bold; 
-            border-top: 2px solid #000; 
-            width: 300px; 
-            margin: 10px auto; 
-            padding-top: 10px;
-            text-align: center;
-          ">
+        <p style="font-size: 20px; color: #444; margin: 15px 0;">Se certifica que:</p>
+        <h2 style="font-size: 32px; font-weight: bold; color: #333; margin: 20px 0;">${participant.name}</h2>
+        <p style="font-size: 20px; color: #444; margin: 15px 0;">Ha completado satisfactoriamente el programa:</p>
+        <h3 style="font-size: 24px; font-weight: bold; color: #333; margin: 20px 0;">${program.name}</h3>
+        <p style="font-size: 18px; color: #666; margin: 25px 0;">Fecha de emisión: ${issueDate}</p>
+        <div style="margin-top: 60px; text-align: center;">
+          <img src="${design.design_params.signature_url?.url}" alt="Firma" style="width: 200px; margin-bottom: 10px;">
+          <p style="font-size: 18px; font-weight: bold; border-top: 2px solid #000; width: 300px; margin: 10px auto; padding-top: 10px;">
             Director Académico
           </p>
         </div>
-        <p style="
-          font-size: 14px; 
-          color: #666; 
-          position: absolute; 
-          bottom: 20px; 
-          right: 20px;
-          text-align: right;
-        ">
+        <p style="font-size: 14px; color: #666; position: absolute; bottom: 20px; right: 20px;">
           Número de certificado: ${certificateNumber}
         </p>
       </div>
