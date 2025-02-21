@@ -47,6 +47,65 @@ const Registration = () => {
     organization: ''
   });
 
+  const registerParticipant = async (participant: ParticipantData) => {
+    const qrCode = crypto.randomUUID();
+    console.log('Registrando participante con QR:', qrCode);
+    
+    const { data, error: participantError } = await supabase
+      .from('participants')
+      .upsert({
+        name: participant.name.trim(),
+        email: participant.email.toLowerCase().trim(),
+        qr_code: qrCode,
+        status: 'active',
+        role: participant.role,
+        organization: participant.organization.trim()
+      }, {
+        onConflict: 'email'
+      })
+      .select()
+      .single();
+
+    if (participantError) {
+      if (participantError.code === '23505') {
+        throw new Error("Este correo electrónico ya está registrado");
+      }
+      throw participantError;
+    }
+
+    console.log('Participante registrado:', data);
+
+    // Enviamos el email con el QR
+    const { error: emailError } = await supabase.functions.invoke('send-qr-email', {
+      body: {
+        name: participant.name,
+        email: participant.email,
+        qrCode: qrCode
+      }
+    });
+
+    if (emailError) {
+      console.error('Error al enviar el email:', emailError);
+      toast({
+        title: "Error al enviar el email",
+        description: "El participante fue registrado pero hubo un problema al enviar el email con el QR",
+        variant: "destructive",
+      });
+      throw emailError;
+    }
+
+    // Actualizamos el estado del envío del QR
+    await supabase
+      .from('participants')
+      .update({
+        qr_sent_at: new Date().toISOString(),
+        qr_sent_email_status: 'SENT'
+      })
+      .eq('id', data.id);
+
+    return data;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -88,13 +147,13 @@ const Registration = () => {
     Papa.parse(file, {
       complete: (results) => {
         const participants: ParticipantData[] = results.data
-          .slice(1) // Skip header row
-          .filter((row: any[]) => row.length >= 3 && row[0] && row[1]) // Asegurarse que tenga nombre y email
+          .slice(1)
+          .filter((row: any[]) => row.length >= 3 && row[0] && row[1])
           .map((row: any[]) => ({
             name: row[0]?.toString() || '',
             email: row[1]?.toString() || '',
             organization: row[2]?.toString() || '',
-            role: 'participant' // Default role
+            role: 'participant'
           }));
 
         setCsvParticipants(participants);
@@ -135,7 +194,6 @@ const Registration = () => {
         await registerParticipant(participant);
         successCount++;
 
-        // Actualizar progreso
         if ((i + 1) % 5 === 0 || i === total - 1) {
           toast({
             title: "Progreso",
@@ -143,7 +201,7 @@ const Registration = () => {
           });
         }
       } catch (error) {
-        console.error('Error registering participant:', error);
+        console.error('Error registrando participante:', error);
         errorCount++;
       }
     }
@@ -159,60 +217,6 @@ const Registration = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
-
-  const registerParticipant = async (participant: ParticipantData) => {
-    const qrCode = crypto.randomUUID();
-    
-    const { data, error: participantError } = await supabase
-      .from('participants')
-      .upsert({
-        name: participant.name.trim(),
-        email: participant.email.toLowerCase().trim(),
-        qr_code: qrCode,
-        status: 'active',
-        role: participant.role,
-        organization: participant.organization.trim()
-      }, {
-        onConflict: 'email'
-      })
-      .select()
-      .single();
-
-    if (participantError) {
-      if (participantError.code === '23505') {
-        throw new Error("Este correo electrónico ya está registrado");
-      }
-      throw participantError;
-    }
-
-    try {
-      await supabase.functions.invoke('send-qr-email', {
-        body: {
-          name: participant.name,
-          email: participant.email,
-          qrCode: qrCode,
-        },
-      });
-
-      await supabase
-        .from('participants')
-        .update({
-          qr_sent_at: new Date().toISOString(),
-          qr_sent_email_status: 'SENT'
-        })
-        .eq('id', data.id);
-
-    } catch (error) {
-      console.error('Error enviando email:', error);
-      toast({
-        title: "Advertencia",
-        description: "El participante fue registrado pero hubo un problema al enviar el email",
-        variant: "destructive",
-      });
-    }
-
-    return data;
   };
 
   return (

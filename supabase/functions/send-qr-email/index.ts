@@ -24,84 +24,89 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos');
     }
 
-    // Crear una URL SVG del código QR
-    const svg = await new Promise((resolve, reject) => {
-      QRCode.toString(qrCode, {
-        type: 'svg',
-        errorCorrectionLevel: 'H',
-        width: 400,
+    try {
+      // Generar QR como una URL de datos PNG
+      const qrDataUrl = await QRCode.toDataURL(qrCode, {
+        type: 'image/png',
         margin: 1,
-      }, (err, string) => {
-        if (err) reject(err);
-        else resolve(string);
+        width: 300,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        },
+        errorCorrectionLevel: 'H'
       });
-    });
 
-    console.log('QR SVG generado correctamente');
+      console.log('QR generado exitosamente');
 
-    // Convertir el SVG a una URL de datos
-    const svgDataUrl = `data:image/svg+xml;base64,${btoa(svg as string)}`;
-    console.log('URL de datos SVG generada');
-
-    const emailResponse = await resend.emails.send({
-      from: "Asistencia <onboarding@resend.dev>",
-      to: [email],
-      subject: "Tu Código QR para Registro de Asistencia",
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Tu Código QR para Asistencia</title>
-          </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #333; text-align: center; margin-bottom: 20px;">
-                ¡Bienvenido/a ${name}!
-              </h1>
-              
-              <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <p style="text-align: center; color: #666; margin-bottom: 20px;">
-                  Este es tu código QR personal para registrar tu asistencia:
-                </p>
+      const emailResponse = await resend.emails.send({
+        from: "Asistencia <onboarding@resend.dev>",
+        to: [email],
+        subject: "Tu Código QR para Registro de Asistencia",
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Tu Código QR para Asistencia</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
+              <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #333; text-align: center; margin-bottom: 20px;">
+                  ¡Bienvenido/a ${name}!
+                </h1>
                 
-                <div style="text-align: center; margin: 20px 0;">
-                  ${svg}
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                    Este es tu código QR personal para registrar tu asistencia:
+                  </p>
+                  
+                  <div style="text-align: center; margin: 20px 0;">
+                    <img src="${qrDataUrl}" 
+                         alt="Tu código QR" 
+                         style="max-width: 300px; width: 100%; height: auto;"
+                    />
+                  </div>
+                  
+                  <p style="text-align: center; color: #666; margin-top: 20px;">
+                    Tu código de registro es: <strong>${qrCode}</strong>
+                  </p>
                 </div>
                 
-                <p style="text-align: center; color: #666; margin-top: 20px;">
-                  Tu código de registro es: <strong>${qrCode}</strong>
-                </p>
+                <div style="margin-top: 20px; padding: 20px; background-color: #f5f5f5; border-radius: 8px;">
+                  <h2 style="color: #333; margin-bottom: 10px; font-size: 18px;">
+                    Instrucciones:
+                  </h2>
+                  <ol style="color: #666; margin: 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Guarda este código QR en tu teléfono o imprímelo</li>
+                    <li style="margin-bottom: 8px;">Muestra el código QR al llegar a cada sesión</li>
+                    <li style="margin-bottom: 8px;">El personal escaneará tu código para registrar tu asistencia</li>
+                  </ol>
+                </div>
               </div>
-              
-              <div style="margin-top: 20px; padding: 20px; background-color: #f5f5f5; border-radius: 8px;">
-                <h2 style="color: #333; margin-bottom: 10px; font-size: 18px;">
-                  Instrucciones:
-                </h2>
-                <ol style="color: #666; margin: 0; padding-left: 20px;">
-                  <li style="margin-bottom: 8px;">Guarda este código QR en tu teléfono o imprímelo</li>
-                  <li style="margin-bottom: 8px;">Muestra el código QR al llegar a cada sesión</li>
-                  <li style="margin-bottom: 8px;">El personal escaneará tu código para registrar tu asistencia</li>
-                </ol>
-              </div>
-            </div>
-          </body>
-        </html>
-      `
-    });
+            </body>
+          </html>
+        `
+      });
 
-    console.log('Email enviado exitosamente:', emailResponse);
+      console.log('Email enviado exitosamente:', emailResponse);
 
-    return new Response(
-      JSON.stringify({ success: true, data: emailResponse }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      },
-    );
+      return new Response(
+        JSON.stringify({ success: true, data: emailResponse }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        },
+      );
+
+    } catch (emailError) {
+      console.error('Error en el proceso:', emailError);
+      throw emailError;
+    }
 
   } catch (error) {
-    console.error('Error en el proceso:', error);
+    console.error('Error en send-qr-email:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
