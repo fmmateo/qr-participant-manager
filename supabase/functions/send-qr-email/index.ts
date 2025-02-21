@@ -36,7 +36,7 @@ serve(async (req) => {
       console.log('QR generado exitosamente como buffer');
 
       const emailResponse = await resend.emails.send({
-        from: "Asistencia <onboarding@resend.dev>",
+        from: "Registro <no-reply@twinsrd.com>",
         to: [email],
         subject: "Tu Código QR para Registro de Asistencia",
         html: `
@@ -89,7 +89,7 @@ serve(async (req) => {
             filename: 'qr-code.png',
             content: qrBuffer,
             contentType: 'image/png',
-            cid: 'qr-code' // Este ID se usa en el src de la imagen
+            cid: 'qr-code'
           }
         ]
       });
@@ -123,3 +123,4 @@ serve(async (req) => {
     );
   }
 });
+
