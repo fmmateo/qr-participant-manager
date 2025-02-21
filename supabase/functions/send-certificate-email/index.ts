@@ -23,7 +23,6 @@ interface EmailPayload {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -37,25 +36,49 @@ const handler = async (req: Request): Promise<Response> => {
       to: [payload.email],
       subject: `Tu certificado de ${payload.certificateType} - ${payload.programName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-          <h1 style="text-align: center; color: #333;">¡Felicitaciones ${payload.name}!</h1>
-          <p style="text-align: center; font-size: 16px;">Has recibido un certificado de ${payload.certificateType} para el programa:</p>
-          <h2 style="text-align: center; color: #444;">${payload.programName}</h2>
-          
-          <div style="margin: 30px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px;">
-            ${payload.htmlContent}
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Certificado</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #FFFFFF;">
+          <div style="
+            font-family: Arial, sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background-color: #FFFFFF;
+          ">
+            <h1 style="text-align: center; color: #000000;">¡Felicitaciones ${payload.name}!</h1>
+            <p style="text-align: center; font-size: 16px; color: #000000;">
+              Has recibido un certificado de ${payload.certificateType} para el programa:
+            </p>
+            <h2 style="text-align: center; color: #000000;">${payload.programName}</h2>
+            
+            <div style="
+              margin: 30px auto;
+              padding: 20px;
+              border: 2px solid #ddd;
+              border-radius: 8px;
+              background-color: #FFFFFF;
+            ">
+              ${payload.htmlContent}
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+              <p style="color: #000000;"><strong>Número de certificado:</strong> ${payload.certificateNumber}</p>
+              <p style="color: #000000;"><strong>Fecha de emisión:</strong> ${payload.issueDate}</p>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #000000;">
+            <p style="color: #000000; font-size: 12px; text-align: center;">
+              Este certificado ha sido generado automáticamente.
+            </p>
           </div>
-          
-          <div style="margin-top: 20px; text-align: center;">
-            <p><strong>Número de certificado:</strong> ${payload.certificateNumber}</p>
-            <p><strong>Fecha de emisión:</strong> ${payload.issueDate}</p>
-          </div>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #666; font-size: 12px; text-align: center;">
-            Este es un correo automático, por favor no responder.
-          </p>
-        </div>
+        </body>
+        </html>
       `,
     });
 
