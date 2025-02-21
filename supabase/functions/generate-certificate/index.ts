@@ -1,17 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
-const SMTP_HOST = Deno.env.get('SMTP_HOST');
-const SMTP_PORT = Deno.env.get('SMTP_PORT');
-const SMTP_USER = Deno.env.get('SMTP_USER');
-const SMTP_PASS = Deno.env.get('SMTP_PASS');
 
 serve(async (req) => {
   // Handle CORS
@@ -30,6 +23,7 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
+      templateUrl,
       design
     } = await req.json();
 
@@ -39,6 +33,7 @@ serve(async (req) => {
       certificateNumber,
       programType,
       programName,
+      templateUrl,
       designParams: design?.design_params
     });
 
@@ -47,19 +42,38 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
 
-    // Configurar cliente SMTP
-    const emailData = {
-      to: email,
-      subject: `Tu certificado de ${certificateType} - ${programName}`,
-      text: `¡Felicitaciones ${name}! Has completado exitosamente el programa ${programName}.`,
-      html: `
-        <h1>¡Felicitaciones ${name}!</h1>
-        <p>Has completado exitosamente el programa ${programName}.</p>
-        <p>Tu código de verificación es: ${certificateNumber}</p>
-      `
-    };
+    // Generar HTML del certificado usando el diseño proporcionado
+    const certificateHtml = design?.design_params?.template_html?.text || '';
+    
+    // Convertir HTML a PDF usando html-pdf-chrome
+    const pdfResponse = await fetch('https://api.pdfendpoint.com/v1/convert', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('PDF_API_KEY')}`
+      },
+      body: JSON.stringify({
+        html: certificateHtml,
+        options: {
+          format: 'A4',
+          landscape: true,
+          margin: {
+            top: '1cm',
+            right: '1cm',
+            bottom: '1cm',
+            left: '1cm'
+          }
+        }
+      })
+    });
 
-    // Enviar correo usando la API de Resend
+    if (!pdfResponse.ok) {
+      throw new Error('Error al generar el PDF del certificado');
+    }
+
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    
+    // Enviar correo usando Resend
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -67,10 +81,19 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Certificados <certificados@resend.dev>',
+        from: 'fmmateo98@gmail.com', // Email verificado para pruebas
         to: [email],
-        subject: emailData.subject,
-        html: emailData.html
+        subject: `Tu certificado de ${certificateType} - ${programName}`,
+        html: `
+          <h1>¡Felicitaciones ${name}!</h1>
+          <p>Has completado exitosamente el programa ${programName}.</p>
+          <p>Tu código de verificación es: ${certificateNumber}</p>
+          <p>Adjunto encontrarás tu certificado en formato PDF.</p>
+        `,
+        attachments: [{
+          filename: `certificado-${certificateNumber}.pdf`,
+          content: Buffer.from(pdfBuffer).toString('base64')
+        }]
       })
     });
 
