@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Save } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CertificateAssetUpload } from "./CertificateAssetUpload";
-import type { CertificateDesign } from "./types";
+import type { CertificateDesign, CertificateDesignParams } from "./types";
 
 interface CertificateDesignEditorProps {
   design?: CertificateDesign;
@@ -22,8 +21,8 @@ export const CertificateDesignEditor = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState(design?.name || "");
-  const [logoUrl, setLogoUrl] = useState(design?.design_params?.logo_url?.url || "");
-  const [signatureUrl, setSignatureUrl] = useState(design?.design_params?.signature_url?.url || "");
+  const [logoUrl, setLogoUrl] = useState((design?.design_params as CertificateDesignParams)?.logo_url?.url || "");
+  const [signatureUrl, setSignatureUrl] = useState((design?.design_params as CertificateDesignParams)?.signature_url?.url || "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +147,7 @@ export const CertificateDesignEditor = ({
 </body>
 </html>`;
 
-      const designParams = {
+      const designParams: CertificateDesignParams = {
         title: { text: "Certificado de Participación", type: "text" },
         logo_url: { url: logoUrl, type: "image" },
         signature_url: { url: signatureUrl, type: "image" },
@@ -156,7 +155,6 @@ export const CertificateDesignEditor = ({
       };
 
       if (design?.id) {
-        // Actualizar diseño existente
         const { error } = await supabase
           .from('certificate_designs')
           .update({
@@ -168,7 +166,6 @@ export const CertificateDesignEditor = ({
 
         if (error) throw error;
       } else {
-        // Crear nuevo diseño
         const { error } = await supabase
           .from('certificate_designs')
           .insert([
