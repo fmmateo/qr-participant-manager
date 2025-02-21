@@ -87,42 +87,39 @@ export const issueCertificate = async (
     // Clonar y actualizar el diseño con la información del participante
     const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
     
-    // Definir campos específicos para la plantilla
     if (typeof updatedDesignParams !== 'object') {
       throw new Error('Formato de diseño inválido');
     }
 
-    // Definir interface para el mapeo de campos
-    interface FieldMapping {
-      [key: string]: [string, readonly string[]];
-    }
+    // Generar URL del código QR
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(certificateNumber)}`;
 
-    // Mapeo flexible de campos con variaciones comunes
-    const fieldMappings: FieldMapping = {
-      name: [participant.name, ['name', 'participant_name', 'full_name', 'nombre', 'participante'] as const],
-      program: [program.name, ['title', 'program', 'course', 'programa', 'curso', 'titulo'] as const],
-      type: [program.type, ['subtitle1', 'program_type', 'type', 'tipo'] as const],
-      certType: [certType, ['subtitle2', 'certificate_type', 'cert_type', 'tipo_certificado'] as const],
-      date: [new Date().toLocaleDateString('es-ES'), ['date', 'issue_date', 'fecha'] as const]
-    };
-
-    // Actualizar todos los campos que coincidan con las variaciones conocidas
-    Object.keys(updatedDesignParams).forEach(key => {
-      const lowerKey = key.toLowerCase();
-      
-      // Buscar coincidencias en nuestro mapeo de campos
-      for (const [, [value, variations]] of Object.entries(fieldMappings)) {
-        if (Array.isArray(variations) && variations.some(v => lowerKey.includes(v.toLowerCase()))) {
-          if (updatedDesignParams[key] && typeof updatedDesignParams[key] === 'object') {
-            if ('text' in updatedDesignParams[key]) {
-              updatedDesignParams[key].text = value;
-            }
-          } else {
-            updatedDesignParams[key] = value;
-          }
-        }
-      }
+    // Formatear fecha en español
+    const issueDate = new Date().toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     });
+
+    // Actualizar los campos del diseño
+    const templateHtml = updatedDesignParams.template_html?.text || '';
+    
+    // Reemplazar los valores en el HTML
+    const updatedHtml = templateHtml
+      .replace('[Nombre]', participant.name)
+      .replace('[Curso]', program.name)
+      .replace('[Fecha]', issueDate)
+      .replace('[Código]', certificateNumber)
+      .replace('id="codigoQR" src=""', `id="codigoQR" src="${qrCodeUrl}"`)
+      .replace('id="logoEmpresa" src=""', `id="logoEmpresa" src="${updatedDesignParams.logo_url?.url || ''}"`)
+      .replace('id="firmaDigital" src=""', `id="firmaDigital" src="${updatedDesignParams.signature_url?.url || ''}"`)
+      .replace('Certificado de Participación', updatedDesignParams.title?.text || 'Certificado de Participación');
+
+    // Actualizar el HTML en los parámetros de diseño
+    updatedDesignParams.template_html = {
+      text: updatedHtml,
+      type: 'html'
+    };
 
     console.log('Parámetros de diseño actualizados:', updatedDesignParams);
 
@@ -134,10 +131,11 @@ export const issueCertificate = async (
       certificateType: certType,
       programType: program.type,
       programName: program.name,
-      issueDate: new Date().toLocaleDateString('es-ES'),
+      issueDate: issueDate,
       templateId: selectedTemplate.id,
       templateUrl: template.template_url,
-      design: updatedDesignParams
+      design: updatedDesignParams,
+      format: design.format
     };
 
     console.log('Enviando payload a la función edge:', emailPayload);
