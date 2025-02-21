@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -288,14 +288,23 @@ const IssueCertificate = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary p-6">
       <div className="max-w-xl mx-auto space-y-8 animate-in">
-        <Button 
-          variant="ghost" 
-          className="mb-6"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver
-        </Button>
+        <div className="flex justify-between items-center">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver
+          </Button>
+
+          <Button 
+            variant="outline"
+            onClick={() => navigate('/certificate-designs')}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Gestionar Diseños
+          </Button>
+        </div>
 
         <Card className="p-6 glass-card">
           <div className="space-y-6">
