@@ -74,7 +74,8 @@ export const issueCertificate = async (
           program_name: program.name,
           issue_date: new Date().toISOString(),
           template_id: selectedTemplate.id,
-          sent_email_status: 'PENDING'
+          sent_email_status: 'PENDING',
+          external_id: null
         }
       ])
       .select()
@@ -84,16 +85,6 @@ export const issueCertificate = async (
       throw insertError;
     }
 
-    // Clonar y actualizar el diseño con la información del participante
-    const updatedDesignParams = JSON.parse(JSON.stringify(design.design_params));
-    
-    if (typeof updatedDesignParams !== 'object') {
-      throw new Error('Formato de diseño inválido');
-    }
-
-    // Generar URL del código QR
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(certificateNumber)}`;
-
     // Formatear fecha en español
     const issueDate = new Date().toLocaleDateString('es-ES', {
       day: 'numeric',
@@ -101,50 +92,28 @@ export const issueCertificate = async (
       year: 'numeric'
     });
 
-    // Actualizar los campos del diseño
-    const templateHtml = updatedDesignParams.template_html?.text || '';
-    
-    // Reemplazar los valores en el HTML
-    const updatedHtml = templateHtml
-      .replace('[Nombre]', participant.name)
-      .replace('[Curso]', program.name)
-      .replace('[Fecha]', issueDate)
-      .replace('[Código]', certificateNumber)
-      .replace('id="codigoQR" src=""', `id="codigoQR" src="${qrCodeUrl}"`)
-      .replace('id="logoEmpresa" src=""', `id="logoEmpresa" src="${updatedDesignParams.logo_url?.url || ''}"`)
-      .replace('id="firmaDigital" src=""', `id="firmaDigital" src="${updatedDesignParams.signature_url?.url || ''}"`)
-      .replace('Certificado de Participación', updatedDesignParams.title?.text || 'Certificado de Participación');
-
-    // Actualizar el HTML en los parámetros de diseño
-    updatedDesignParams.template_html = {
-      text: updatedHtml,
-      type: 'html'
-    };
-
-    console.log('Parámetros de diseño actualizados:', updatedDesignParams);
-
     // Construir payload para la función edge
-    const emailPayload = {
+    const payload = {
       name: participant.name,
       email: participant.email,
       certificateNumber,
       certificateType: certType,
       programType: program.type,
       programName: program.name,
-      issueDate: issueDate,
+      issueDate,
       templateId: selectedTemplate.id,
       templateUrl: template.template_url,
-      design: updatedDesignParams,
+      design: design.design_params,
       format: design.format
     };
 
-    console.log('Enviando payload a la función edge:', emailPayload);
+    console.log('Enviando payload a la función edge:', payload);
 
     // Llamar a la función edge
     const { data: response, error: edgeError } = await supabase.functions.invoke(
       'generate-certificate',
       {
-        body: emailPayload
+        body: payload
       }
     );
 
@@ -172,7 +141,6 @@ export const issueCertificate = async (
       .update({
         sent_at: new Date().toISOString(),
         sent_email_status: 'SUCCESS',
-        image_url: response.certificateUrl,
         verification_url: response.verificationUrl,
         external_id: response.id
       })

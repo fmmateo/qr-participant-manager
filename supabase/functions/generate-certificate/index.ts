@@ -1,9 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import nodemailer from "npm:nodemailer";
 import PDFDocument from "npm:pdfkit";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,10 +25,9 @@ serve(async (req) => {
       design
     } = await req.json();
 
-    console.log('Recibidos datos del certificado:', {
-      name,
-      email,
+    console.log('Recibiendo solicitud de generación de certificado:', {
       certificateNumber,
+      email,
       programName
     });
 
@@ -38,7 +35,18 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
 
-    // Crear el PDF
+    // Configurar transporte SMTP
+    const transporter = nodemailer.createTransport({
+      host: Deno.env.get("SMTP_HOST"),
+      port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
+      secure: Deno.env.get("SMTP_SECURE") === "true",
+      auth: {
+        user: Deno.env.get("SMTP_USER"),
+        pass: Deno.env.get("SMTP_PASS")
+      }
+    });
+
+    // Generar PDF
     const doc = new PDFDocument({
       layout: 'landscape',
       size: 'A4',
@@ -65,14 +73,20 @@ serve(async (req) => {
        .strokeColor('#b8860b');
     doc.stroke();
 
-    // Logo de la empresa (si está disponible)
-    if (design.design_params?.logo_url?.url) {
-      doc.image(
-        design.design_params.logo_url.url,
-        doc.page.width / 2 - 75,
-        50,
-        { width: 150 }
-      );
+    // Logo de la empresa
+    if (design.logo_url?.url) {
+      try {
+        const logoResponse = await fetch(design.logo_url.url);
+        const logoBuffer = await logoResponse.arrayBuffer();
+        doc.image(
+          new Uint8Array(logoBuffer),
+          doc.page.width / 2 - 75,
+          50,
+          { width: 150 }
+        );
+      } catch (error) {
+        console.error('Error al cargar el logo:', error);
+      }
     }
 
     // Título
@@ -112,8 +126,7 @@ serve(async (req) => {
     doc.fontSize(18)
        .text('Habiendo demostrado los conocimientos y competencias requeridas para su aprobación, cumpliendo con todos los requisitos establecidos por la institución.', {
          align: 'center',
-         width: 500,
-         align: 'center'
+         width: 500
        })
        .moveDown();
 
@@ -123,13 +136,19 @@ serve(async (req) => {
        });
 
     // Firma
-    if (design.design_params?.signature_url?.url) {
-      doc.image(
-        design.design_params.signature_url.url,
-        doc.page.width / 2 - 100,
-        doc.page.height - 200,
-        { width: 200 }
-      );
+    if (design.signature_url?.url) {
+      try {
+        const signatureResponse = await fetch(design.signature_url.url);
+        const signatureBuffer = await signatureResponse.arrayBuffer();
+        doc.image(
+          new Uint8Array(signatureBuffer),
+          doc.page.width / 2 - 100,
+          doc.page.height - 200,
+          { width: 200 }
+        );
+      } catch (error) {
+        console.error('Error al cargar la firma:', error);
+      }
     }
 
     doc.fontSize(18)
@@ -139,13 +158,19 @@ serve(async (req) => {
          { width: 300, align: 'center' });
 
     // QR Code
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(certificateNumber)}`;
-    doc.image(
-      qrUrl,
-      doc.page.width - 150,
-      doc.page.height - 180,
-      { width: 120 }
-    );
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(certificateNumber)}`;
+      const qrResponse = await fetch(qrUrl);
+      const qrBuffer = await qrResponse.arrayBuffer();
+      doc.image(
+        new Uint8Array(qrBuffer),
+        doc.page.width - 150,
+        doc.page.height - 180,
+        { width: 120 }
+      );
+    } catch (error) {
+      console.error('Error al generar código QR:', error);
+    }
 
     doc.fontSize(14)
        .text('Código de verificación:',
@@ -164,9 +189,11 @@ serve(async (req) => {
     const pdfBuffer = await pdfPromise;
 
     // Enviar el correo con el PDF adjunto
-    const emailResponse = await resend.emails.send({
-      from: 'Certificados <certificados@resend.dev>',
-      to: [email],
+    console.log('Enviando correo electrónico...');
+    
+    const info = await transporter.sendMail({
+      from: `"Certificados" <${Deno.env.get("SMTP_USER")}>`,
+      to: email,
       subject: `Tu certificado de ${programName}`,
       html: `
         <h1>¡Felicitaciones ${name}!</h1>
@@ -179,14 +206,13 @@ serve(async (req) => {
       }]
     });
 
-    console.log('Respuesta del envío de correo:', emailResponse);
+    console.log('Correo enviado exitosamente:', info.messageId);
 
     return new Response(
       JSON.stringify({
         success: true,
-        id: emailResponse.id,
-        certificateUrl: `https://example.com/certificates/${certificateNumber}`,
-        verificationUrl: `https://example.com/verify/${certificateNumber}`
+        id: info.messageId,
+        verificationUrl: `https://certificados.example.com/verify/${certificateNumber}`
       }),
       {
         headers: { 
