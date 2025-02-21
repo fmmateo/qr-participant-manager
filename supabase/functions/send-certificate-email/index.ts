@@ -19,6 +19,7 @@ interface EmailPayload {
   issueDate: string;
   templateId: string;
   templateUrl: string;
+  htmlContent: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -36,17 +37,24 @@ const handler = async (req: Request): Promise<Response> => {
       to: [payload.email],
       subject: `Tu certificado de ${payload.certificateType} - ${payload.programName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>¡Felicitaciones ${payload.name}!</h1>
-          <p>Has recibido un certificado de ${payload.certificateType} para el programa:</p>
-          <h2>${payload.programName}</h2>
-          <p><strong>Tipo de programa:</strong> ${payload.programType}</p>
-          <p><strong>Número de certificado:</strong> ${payload.certificateNumber}</p>
-          <p><strong>Fecha de emisión:</strong> ${payload.issueDate}</p>
-          <p>Puedes descargar tu certificado haciendo clic en el siguiente enlace:</p>
-          <p><a href="${payload.templateUrl}" target="_blank">Descargar certificado</a></p>
-          <hr>
-          <p style="color: #666; font-size: 12px;">Este es un correo automático, por favor no responder.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+          <h1 style="text-align: center; color: #333;">¡Felicitaciones ${payload.name}!</h1>
+          <p style="text-align: center; font-size: 16px;">Has recibido un certificado de ${payload.certificateType} para el programa:</p>
+          <h2 style="text-align: center; color: #444;">${payload.programName}</h2>
+          
+          <div style="margin: 30px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px;">
+            ${payload.htmlContent}
+          </div>
+          
+          <div style="margin-top: 20px; text-align: center;">
+            <p><strong>Número de certificado:</strong> ${payload.certificateNumber}</p>
+            <p><strong>Fecha de emisión:</strong> ${payload.issueDate}</p>
+          </div>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px; text-align: center;">
+            Este es un correo automático, por favor no responder.
+          </p>
         </div>
       `,
     });
@@ -57,8 +65,6 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         id: emailResponse.id,
-        certificateUrl: payload.templateUrl,
-        verificationUrl: `https://verificar.certificados.com/${payload.certificateNumber}`
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
