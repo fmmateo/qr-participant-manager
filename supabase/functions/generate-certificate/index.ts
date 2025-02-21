@@ -28,7 +28,8 @@ serve(async (req) => {
     console.log('Recibiendo solicitud de generación de certificado:', {
       certificateNumber,
       email,
-      programName
+      programName,
+      design
     });
 
     if (!email || !name || !certificateNumber || !programName) {
@@ -74,8 +75,9 @@ serve(async (req) => {
     doc.stroke();
 
     // Logo de la empresa
-    if (design.logo_url?.url) {
+    if (design?.logo_url?.url) {
       try {
+        console.log('Cargando logo desde:', design.logo_url.url);
         const logoResponse = await fetch(design.logo_url.url);
         const logoBuffer = await logoResponse.arrayBuffer();
         doc.image(
@@ -136,8 +138,9 @@ serve(async (req) => {
        });
 
     // Firma
-    if (design.signature_url?.url) {
+    if (design?.signature_url?.url) {
       try {
+        console.log('Cargando firma desde:', design.signature_url.url);
         const signatureResponse = await fetch(design.signature_url.url);
         const signatureBuffer = await signatureResponse.arrayBuffer();
         doc.image(
@@ -223,12 +226,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error en generate-certificate:', error);
+    console.error('Error detallado en generate-certificate:', error);
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message || 'Error desconocido al generar el certificado'
       }),
       {
         status: 400,

@@ -74,8 +74,7 @@ export const issueCertificate = async (
           program_name: program.name,
           issue_date: new Date().toISOString(),
           template_id: selectedTemplate.id,
-          sent_email_status: 'PENDING',
-          external_id: null
+          sent_email_status: 'PENDING'
         }
       ])
       .select()
@@ -103,8 +102,7 @@ export const issueCertificate = async (
       issueDate,
       templateId: selectedTemplate.id,
       templateUrl: template.template_url,
-      design: design.design_params,
-      format: design.format
+      design: design.design_params
     };
 
     console.log('Enviando payload a la función edge:', payload);
