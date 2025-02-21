@@ -8,7 +8,7 @@ const generateCertificateHTML = (participant: Participant, program: Program, cer
     <div style="font-family: 'Times New Roman', serif; text-align: center; padding: 20px;">
       <div style="border: 15px solid #b8860b; padding: 50px; width: 800px; margin: auto; background: white; position: relative;">
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 40px;">
-          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 150px; margin-right: 20px;">
+          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 100px; margin-right: 20px;">
           <div style="text-align: center;">
             <h1 style="font-size: 42px; font-weight: bold; color: #b8860b; margin-bottom: 15px; text-transform: uppercase;">
               Certificado de ${certType}
