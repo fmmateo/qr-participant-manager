@@ -1,0 +1,3 @@
+
+[functions.generate-certificate]
+verify_jwt = false
