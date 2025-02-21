@@ -23,21 +23,19 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos');
     }
 
-    console.log('Iniciando proceso de envío de email para:', { name, email });
+    console.log('Procesando solicitud para:', { name, email, qrCode });
 
     try {
-      // Generamos el QR solo con el código, simplificando el contenido
-      const qrOptions = {
+      // Generar QR en formato PNG usando toBuffer
+      const qrBuffer = await QRCode.toBuffer(qrCode, {
         errorCorrectionLevel: 'H',
         width: 400,
         margin: 1,
-      };
+        type: 'png'
+      });
 
-      console.log('Generando QR para código:', qrCode);
-      
-      // Generamos el QR directamente con el código
-      const qrDataUrl = await QRCode.toDataURL(qrCode, qrOptions);
-      
+      // Convertir el buffer a base64
+      const qrBase64 = `data:image/png;base64,${qrBuffer.toString('base64')}`;
       console.log('QR generado exitosamente');
 
       const emailResponse = await resend.emails.send({
@@ -59,7 +57,7 @@ serve(async (req) => {
                   Aquí está tu código QR personal para registrar tu asistencia:
                 </p>
                 <div style="text-align: center; margin: 30px 0; background-color: white; padding: 20px;">
-                  <img src="${qrDataUrl}" 
+                  <img src="${qrBase64}" 
                        alt="Tu código QR" 
                        style="width: 400px; height: 400px;"
                   />
@@ -81,7 +79,7 @@ serve(async (req) => {
         `
       });
 
-      console.log('Email enviado exitosamente:', { data: emailResponse });
+      console.log('Email enviado exitosamente:', emailResponse);
 
       return new Response(
         JSON.stringify({ success: true, data: emailResponse }),
@@ -92,7 +90,7 @@ serve(async (req) => {
       );
 
     } catch (emailError) {
-      console.error('Error enviando email:', emailError);
+      console.error('Error en el proceso:', emailError);
       throw emailError;
     }
 
