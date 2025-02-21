@@ -35,17 +35,11 @@ serve(async (req) => {
 
     try {
       // Generar QR como string base64
-      const qrDataUrl = await QRCode.toDataURL(qrData, {
-        type: 'image/png',
-        width: 300,
-        margin: 2,
-        errorCorrectionLevel: 'H'
-      });
-
-      console.log('QR generado exitosamente');
+      const qrDataUrl = await QRCode.toDataURL(qrData);
+      console.log('QR generado exitosamente, longitud del QR:', qrDataUrl.length);
 
       const emailResponse = await resend.emails.send({
-        from: "Registro <registro@twinsrd.com>",
+        from: "Asistencia <onboarding@resend.dev>",
         to: email,
         subject: "Tu Código QR para Registro de Asistencia",
         html: `
@@ -72,7 +66,7 @@ serve(async (req) => {
         `
       });
 
-      console.log('Email enviado exitosamente');
+      console.log('Respuesta de Resend:', JSON.stringify(emailResponse, null, 2));
 
       return new Response(
         JSON.stringify({ success: true, data: emailResponse }),
@@ -83,7 +77,7 @@ serve(async (req) => {
       );
 
     } catch (emailError) {
-      console.error('Error enviando email:', emailError);
+      console.error('Error enviando email:', JSON.stringify(emailError, null, 2));
       throw emailError;
     }
 
