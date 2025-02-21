@@ -16,8 +16,12 @@ export const sendQrEmail = async (name: string, email: string, qrCode: string) =
   console.log('Enviando email con QR a:', { name, email, qrCode });
   
   try {
-    const { data, error } = await supabase.functions.invoke<{ success: boolean; message: string }>('send-qr-email', {
-      body: { name, email, qrCode }
+    const { data, error } = await supabase.functions.invoke('send-qr-email', {
+      body: { 
+        name: name.trim(), 
+        email: email.toLowerCase().trim(), 
+        qrCode 
+      }
     });
 
     if (error) {
