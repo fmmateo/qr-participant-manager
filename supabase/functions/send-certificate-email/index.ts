@@ -1,5 +1,6 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { Resend } from "npm:resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -9,73 +10,82 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface EmailPayload {
-  name: string;
-  email: string;
-  certificateNumber: string;
-  certificateType: string;
-  programType: string;
-  programName: string;
-  issueDate: string;
-  templateId: string;
-  templateUrl: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const payload: EmailPayload = await req.json();
-    console.log('Recibido payload:', payload);
+    const { certificateNumber } = await req.json();
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Obtener datos del certificado
+    const { data: certificate, error: certError } = await supabase
+      .from('certificates')
+      .select(`
+        *,
+        participants (
+          name,
+          email
+        )
+      `)
+      .eq('certificate_number', certificateNumber)
+      .single();
+
+    if (certError || !certificate) {
+      throw new Error('Error al obtener el certificado');
+    }
+
+    const verificationUrl = `${req.headers.get('origin')}/certificates/verify/${certificateNumber}`;
+
+    // Enviar email
     const emailResponse = await resend.emails.send({
       from: "Certificados <onboarding@resend.dev>",
-      to: [payload.email],
-      subject: `Tu certificado de ${payload.certificateType} - ${payload.programName}`,
+      to: [certificate.participants.email],
+      subject: `Tu certificado de ${certificate.program_name} está listo`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>¡Felicitaciones ${payload.name}!</h1>
-          <p>Has recibido un certificado de ${payload.certificateType} para el programa:</p>
-          <h2>${payload.programName}</h2>
-          <p><strong>Tipo de programa:</strong> ${payload.programType}</p>
-          <p><strong>Número de certificado:</strong> ${payload.certificateNumber}</p>
-          <p><strong>Fecha de emisión:</strong> ${payload.issueDate}</p>
-          <p>Puedes descargar tu certificado haciendo clic en el siguiente enlace:</p>
-          <p><a href="${payload.templateUrl}" target="_blank">Descargar certificado</a></p>
-          <hr>
-          <p style="color: #666; font-size: 12px;">Este es un correo automático, por favor no responder.</p>
-        </div>
-      `,
+        <h1>¡Hola ${certificate.participants.name}!</h1>
+        <p>Tu certificado de ${certificate.program_name} está listo.</p>
+        <p>Puedes acceder a tu certificado a través del siguiente enlace:</p>
+        <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+        <p>Número de certificado: ${certificateNumber}</p>
+        <br>
+        <p>¡Felicitaciones!</p>
+      `
     });
 
-    console.log('Respuesta de Resend:', emailResponse);
+    console.log('Email enviado:', emailResponse);
+
+    // Actualizar estado de envío
+    const { error: updateError } = await supabase
+      .from('certificates')
+      .update({
+        sent_email_status: 'SUCCESS',
+        sent_at: new Date().toISOString()
+      })
+      .eq('certificate_number', certificateNumber);
+
+    if (updateError) {
+      throw updateError;
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        id: emailResponse.id,
-        certificateUrl: payload.templateUrl,
-        verificationUrl: `https://verificar.certificados.com/${payload.certificateNumber}`
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200 
-      }
+      JSON.stringify({ success: true, message: "Email enviado correctamente" }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error en la función edge:', error);
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ error: error.message }),
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-};
-
-serve(handler);
+});

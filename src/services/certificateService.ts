@@ -113,7 +113,7 @@ export const issueCertificate = async (
 
     console.log('Enviando payload a la función edge:', payload);
 
-    // Llamar a la función edge
+    // Generar certificado
     const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
       'generate-certificate',
       {
@@ -159,16 +159,28 @@ export const issueCertificate = async (
     const { error: updateError } = await supabase
       .from('certificates')
       .update({
-        sent_at: new Date().toISOString(),
-        sent_email_status: 'SUCCESS',
         verification_url: response.verificationUrl,
-        external_id: response.id
+        external_id: response.id,
+        image_url: response.imageUrl
       })
       .eq('certificate_number', certificateNumber);
 
     if (updateError) {
       console.error('Error al actualizar el certificado:', updateError);
       throw new Error('Error al actualizar el estado del certificado');
+    }
+
+    // Enviar email automáticamente
+    const { error: emailError } = await supabase.functions.invoke(
+      'send-certificate-email',
+      {
+        body: { certificateNumber }
+      }
+    );
+
+    if (emailError) {
+      console.error('Error al enviar el email:', emailError);
+      throw new Error('Error al enviar el email del certificado');
     }
 
     return response;
