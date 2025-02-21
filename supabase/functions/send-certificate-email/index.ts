@@ -23,7 +23,6 @@ interface EmailPayload {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -37,12 +36,26 @@ const handler = async (req: Request): Promise<Response> => {
       to: [payload.email],
       subject: `Tu certificado de ${payload.certificateType} - ${payload.programName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+        <div style="
+          font-family: Arial, sans-serif; 
+          max-width: 900px; 
+          margin: 0 auto; 
+          padding: 20px;
+          background-color: #FFFFFF;
+        ">
           <h1 style="text-align: center; color: #333;">¡Felicitaciones ${payload.name}!</h1>
-          <p style="text-align: center; font-size: 16px;">Has recibido un certificado de ${payload.certificateType} para el programa:</p>
+          <p style="text-align: center; font-size: 16px;">
+            Has recibido un certificado de ${payload.certificateType} para el programa:
+          </p>
           <h2 style="text-align: center; color: #444;">${payload.programName}</h2>
           
-          <div style="margin: 30px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px;">
+          <div style="
+            margin: 30px auto;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #FFFFFF;
+          ">
             ${payload.htmlContent}
           </div>
           
@@ -53,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px; text-align: center;">
-            Este es un correo automático, por favor no responder.
+            Este certificado ha sido generado automáticamente.
           </p>
         </div>
       `,
