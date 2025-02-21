@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 import html2canvas from 'html2canvas';
@@ -7,13 +6,11 @@ const generateCertificateHTML = (participant: Participant, program: Program, cer
   const certificateHTML = `
     <div style="font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background-color: #FFFFFF;">
       <div style="border: 15px solid #b8860b; padding: 40px; width: 700px; margin: auto; background-color: #FFFFFF; position: relative;">
-        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 30px; background-color: #FFFFFF;">
-          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 80px; margin-right: 20px;">
-          <div style="text-align: center; background-color: #FFFFFF;">
-            <h1 style="font-size: 36px; font-weight: bold; color: #000000; margin-bottom: 15px; text-transform: uppercase;">
-              Certificado de ${certType}
-            </h1>
-          </div>
+        <div style="text-align: center; margin-bottom: 30px; background-color: #FFFFFF;">
+          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 100px; margin-bottom: 20px;">
+          <h1 style="font-size: 36px; font-weight: bold; color: #000000; margin-bottom: 15px; text-transform: uppercase;">
+            Certificado de ${certType}
+          </h1>
         </div>
         <p style="font-size: 18px; color: #000000; margin: 12px 0;">Se certifica que:</p>
         <h2 style="font-size: 28px; font-weight: bold; color: #000000; margin: 15px 0;">${participant.name}</h2>
