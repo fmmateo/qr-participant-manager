@@ -24,7 +24,7 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
-      templateUrl,
+      templateId,
       design
     } = await req.json();
 
@@ -34,37 +34,12 @@ serve(async (req) => {
       certificateNumber,
       programType,
       programName,
-      designParams: design?.design_params
+      design
     });
 
     // Validar datos requeridos
     if (!email || !name || !certificateNumber || !programName) {
       throw new Error('Faltan datos requeridos para generar el certificado');
-    }
-
-    // Generar HTML del certificado reemplazando las variables
-    let certificateHtml = design?.design_params?.template_html?.text || '';
-    
-    // Reemplazar variables en el HTML
-    certificateHtml = certificateHtml
-      .replace(/\[Nombre\]/g, name)
-      .replace(/\[Curso\]/g, programName)
-      .replace(/\[Fecha\]/g, issueDate)
-      .replace(/\[Código\]/g, certificateNumber);
-
-    // Reemplazar las URLs de los recursos
-    if (design?.design_params?.logo_url?.url) {
-      certificateHtml = certificateHtml.replace(
-        'src="" id="logoEmpresa"',
-        `src="${design.design_params.logo_url.url}" id="logoEmpresa"`
-      );
-    }
-
-    if (design?.design_params?.signature_url?.url) {
-      certificateHtml = certificateHtml.replace(
-        'src="" id="firmaDigital"',
-        `src="${design.design_params.signature_url.url}" id="firmaDigital"`
-      );
     }
 
     // Crear cliente de Supabase
@@ -74,10 +49,45 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Generar HTML del certificado
+    let certificateHtml = design?.design_params?.template_html?.text || '';
+    
+    if (!certificateHtml) {
+      throw new Error('El diseño no contiene una plantilla HTML válida');
+    }
+
+    // Validar recursos del diseño
+    if (!design?.design_params?.logo_url?.url) {
+      throw new Error('El diseño debe incluir un logo');
+    }
+
+    if (!design?.design_params?.signature_url?.url) {
+      throw new Error('El diseño debe incluir una firma');
+    }
+
+    // Reemplazar variables en el HTML
+    certificateHtml = certificateHtml
+      .replace(/\[Nombre\]/g, name)
+      .replace(/\[Curso\]/g, programName)
+      .replace(/\[Fecha\]/g, issueDate)
+      .replace(/\[Código\]/g, certificateNumber);
+
+    // Reemplazar las URLs de los recursos
+    certificateHtml = certificateHtml
+      .replace(
+        'src="" id="logoEmpresa"',
+        `src="${design.design_params.logo_url.url}" id="logoEmpresa"`
+      )
+      .replace(
+        'src="" id="firmaDigital"',
+        `src="${design.design_params.signature_url.url}" id="firmaDigital"`
+      );
+
     try {
+      console.log('Generando PDF con Browserless...');
+      
       // Convertir HTML a PDF usando Browserless
-      const apiUrl = 'https://chrome.browserless.io/pdf';
-      const pdfResponse = await fetch(apiUrl, {
+      const pdfResponse = await fetch('https://chrome.browserless.io/pdf', {
         method: 'POST',
         headers: {
           'Cache-Control': 'no-cache',
@@ -103,14 +113,16 @@ serve(async (req) => {
 
       if (!pdfResponse.ok) {
         const errorText = await pdfResponse.text();
-        console.error('Error en la respuesta de PDF:', errorText);
+        console.error('Error en la respuesta de Browserless:', errorText);
         throw new Error('Error al generar el PDF del certificado');
       }
 
       const pdfBuffer = await pdfResponse.arrayBuffer();
       const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
 
-      // Enviar correo usando la API de Resend
+      console.log('PDF generado correctamente, enviando email...');
+
+      // Enviar correo usando Resend
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -118,7 +130,7 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: email, // Usar el email del destinatario como remitente durante las pruebas
+          from: 'onboarding@resend.dev',
           to: [email],
           subject: `Tu certificado de ${certificateType} - ${programName}`,
           html: `
@@ -136,14 +148,14 @@ serve(async (req) => {
 
       if (!emailResponse.ok) {
         const errorData = await emailResponse.json();
-        console.error('Error al enviar email:', errorData);
+        console.error('Error en la respuesta de Resend:', errorData);
         throw new Error(`Error al enviar email: ${errorData.message || 'Error desconocido'}`);
       }
 
       const emailResult = await emailResponse.json();
       console.log('Email enviado exitosamente:', emailResult);
 
-      // Actualizar el estado del certificado en la base de datos
+      // Actualizar estado del certificado
       const { error: updateError } = await supabaseClient
         .from('certificates')
         .update({
@@ -165,6 +177,7 @@ serve(async (req) => {
           verificationUrl: `https://certificados.example.com/verify/${certificateNumber}`
         }),
         {
+          status: 200,
           headers: {
             'Content-Type': 'application/json',
             ...corsHeaders
@@ -173,7 +186,9 @@ serve(async (req) => {
       );
 
     } catch (innerError) {
-      // Actualizar el estado de error en la base de datos
+      console.error('Error interno:', innerError);
+
+      // Actualizar estado de error
       await supabaseClient
         .from('certificates')
         .update({
@@ -195,7 +210,7 @@ serve(async (req) => {
         error: error.message || 'Error desconocido al generar el certificado'
       }),
       {
-        status: 200, // Cambiar a 200 para evitar el error de non-2xx
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders

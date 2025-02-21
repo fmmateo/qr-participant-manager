@@ -49,7 +49,7 @@ export const issueCertificate = async (
     const certificateNumber = `CERT-${Date.now()}-${participant.id.slice(0, 8)}`;
 
     // Verificar certificado existente
-    const { data: existingCert } = await supabase
+    const { data: existingCert, error: existingError } = await supabase
       .from('certificates')
       .select()
       .eq('participant_id', participant.id)
@@ -57,6 +57,11 @@ export const issueCertificate = async (
       .eq('certificate_type', certType)
       .eq('sent_email_status', 'SUCCESS')
       .maybeSingle();
+
+    if (existingError) {
+      console.error('Error al verificar certificado existente:', existingError);
+      throw new Error('Error al verificar certificado existente');
+    }
 
     if (existingCert) {
       throw new Error(`Ya existe un certificado de ${certType} para este programa`);
@@ -81,6 +86,7 @@ export const issueCertificate = async (
       .single();
 
     if (insertError) {
+      console.error('Error al crear certificado:', insertError);
       throw insertError;
     }
 
@@ -107,7 +113,7 @@ export const issueCertificate = async (
 
     console.log('Enviando payload a la función edge:', payload);
 
-    // Llamar a la función edge con timeout más largo
+    // Llamar a la función edge
     const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
       'generate-certificate',
       {
@@ -133,7 +139,7 @@ export const issueCertificate = async (
     }
 
     // Verificar respuesta
-    if (!response || !response.success) {
+    if (!response || response.error) {
       const errorMessage = response?.error || 'Error desconocido al generar el certificado';
       console.error('Error en la generación del certificado:', errorMessage);
       
