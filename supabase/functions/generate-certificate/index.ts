@@ -7,12 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SIMPLECERT_API_KEY = Deno.env.get('SIMPLECERT_API_KEY');
-const SMTP_HOST = Deno.env.get('SMTP_HOST');
-const SMTP_PORT = Deno.env.get('SMTP_PORT');
-const SMTP_USER = Deno.env.get('SMTP_USER');
-const SMTP_PASS = Deno.env.get('SMTP_PASS');
-
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -30,6 +24,7 @@ serve(async (req) => {
       programType,
       programName,
       issueDate,
+      templateUrl,
       design
     } = await req.json();
 
@@ -47,17 +42,64 @@ serve(async (req) => {
       throw new Error('Faltan datos requeridos para generar el certificado');
     }
 
-    // Configurar cliente SMTP
-    const emailData = {
-      to: email,
-      subject: `Tu certificado de ${certificateType} - ${programName}`,
-      text: `¡Felicitaciones ${name}! Has completado exitosamente el programa ${programName}.`,
-      html: `
-        <h1>¡Felicitaciones ${name}!</h1>
-        <p>Has completado exitosamente el programa ${programName}.</p>
-        <p>Tu código de verificación es: ${certificateNumber}</p>
-      `
-    };
+    // Generar HTML del certificado reemplazando las variables
+    let certificateHtml = design?.design_params?.template_html?.text || '';
+    
+    // Reemplazar variables en el HTML
+    certificateHtml = certificateHtml
+      .replace('[Nombre]', name)
+      .replace('[Curso]', programName)
+      .replace('[Fecha]', issueDate)
+      .replace('[Código]', certificateNumber);
+
+    // Reemplazar las URLs de los recursos
+    if (design?.design_params?.logo_url?.url) {
+      certificateHtml = certificateHtml.replace(
+        'src="" id="logoEmpresa"',
+        `src="${design.design_params.logo_url.url}" id="logoEmpresa"`
+      );
+    }
+
+    if (design?.design_params?.signature_url?.url) {
+      certificateHtml = certificateHtml.replace(
+        'src="" id="firmaDigital"',
+        `src="${design.design_params.signature_url.url}" id="firmaDigital"`
+      );
+    }
+
+    // Convertir HTML a PDF usando html-pdf-chrome
+    const apiUrl = 'https://chrome.browserless.io/pdf';
+    const pdfResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('BROWSERLESS_API_KEY')}`
+      },
+      body: JSON.stringify({
+        html: certificateHtml,
+        options: {
+          displayHeaderFooter: false,
+          printBackground: true,
+          format: 'A4',
+          landscape: true,
+          margin: {
+            top: '1cm',
+            right: '1cm',
+            bottom: '1cm',
+            left: '1cm'
+          }
+        }
+      })
+    });
+
+    if (!pdfResponse.ok) {
+      console.error('Error en la respuesta de PDF:', await pdfResponse.text());
+      throw new Error('Error al generar el PDF del certificado');
+    }
+
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
 
     // Enviar correo usando la API de Resend
     const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -69,8 +111,17 @@ serve(async (req) => {
       body: JSON.stringify({
         from: 'Certificados <certificados@resend.dev>',
         to: [email],
-        subject: emailData.subject,
-        html: emailData.html
+        subject: `Tu certificado de ${certificateType} - ${programName}`,
+        html: `
+          <h1>¡Felicitaciones ${name}!</h1>
+          <p>Has completado exitosamente el programa ${programName}.</p>
+          <p>Tu código de verificación es: ${certificateNumber}</p>
+          <p>Adjunto encontrarás tu certificado en formato PDF.</p>
+        `,
+        attachments: [{
+          filename: `certificado-${certificateNumber}.pdf`,
+          content: pdfBase64
+        }]
       })
     });
 
