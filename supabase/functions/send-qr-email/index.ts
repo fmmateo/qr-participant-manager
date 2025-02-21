@@ -17,85 +17,91 @@ serve(async (req) => {
 
   try {
     const { name, email, qrCode } = await req.json();
+    console.log('Recibidos datos:', { name, email, qrCode });
 
     if (!name || !email || !qrCode) {
       console.error('Datos faltantes:', { name, email, qrCode });
       throw new Error('Faltan datos requeridos');
     }
 
-    console.log('Procesando solicitud para:', { name, email, qrCode });
-
-    try {
-      // Generar QR en formato PNG usando toBuffer
-      const qrBuffer = await QRCode.toBuffer(qrCode, {
+    // Crear una URL SVG del código QR
+    const svg = await new Promise((resolve, reject) => {
+      QRCode.toString(qrCode, {
+        type: 'svg',
         errorCorrectionLevel: 'H',
         width: 400,
         margin: 1,
-        type: 'png'
+      }, (err, string) => {
+        if (err) reject(err);
+        else resolve(string);
       });
+    });
 
-      // Convertir el buffer a base64
-      const qrBase64 = `data:image/png;base64,${qrBuffer.toString('base64')}`;
-      console.log('QR generado exitosamente');
+    console.log('QR SVG generado correctamente');
 
-      const emailResponse = await resend.emails.send({
-        from: "Asistencia <onboarding@resend.dev>",
-        to: [email],
-        subject: "Tu Código QR para Registro de Asistencia",
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Tu Código QR</title>
-            </head>
-            <body>
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h1 style="color: #333; text-align: center;">¡Bienvenido/a ${name}!</h1>
-                <p style="color: #666; font-size: 16px; text-align: center;">
-                  Aquí está tu código QR personal para registrar tu asistencia:
+    // Convertir el SVG a una URL de datos
+    const svgDataUrl = `data:image/svg+xml;base64,${btoa(svg as string)}`;
+    console.log('URL de datos SVG generada');
+
+    const emailResponse = await resend.emails.send({
+      from: "Asistencia <onboarding@resend.dev>",
+      to: [email],
+      subject: "Tu Código QR para Registro de Asistencia",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Tu Código QR para Asistencia</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #333; text-align: center; margin-bottom: 20px;">
+                ¡Bienvenido/a ${name}!
+              </h1>
+              
+              <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                  Este es tu código QR personal para registrar tu asistencia:
                 </p>
-                <div style="text-align: center; margin: 30px 0; background-color: white; padding: 20px;">
-                  <img src="${qrBase64}" 
-                       alt="Tu código QR" 
-                       style="width: 400px; height: 400px;"
-                  />
+                
+                <div style="text-align: center; margin: 20px 0;">
+                  ${svg}
                 </div>
-                <p style="color: #666; font-size: 14px; text-align: center;">
+                
+                <p style="text-align: center; color: #666; margin-top: 20px;">
                   Tu código de registro es: <strong>${qrCode}</strong>
                 </p>
-                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <p style="color: #333; font-weight: bold;">Instrucciones:</p>
-                  <ol style="color: #666;">
-                    <li>Guarda este código QR en tu teléfono o imprímelo</li>
-                    <li>Muestra el código QR al llegar a cada sesión</li>
-                    <li>El personal escaneará tu código para registrar tu asistencia</li>
-                  </ol>
-                </div>
               </div>
-            </body>
-          </html>
-        `
-      });
+              
+              <div style="margin-top: 20px; padding: 20px; background-color: #f5f5f5; border-radius: 8px;">
+                <h2 style="color: #333; margin-bottom: 10px; font-size: 18px;">
+                  Instrucciones:
+                </h2>
+                <ol style="color: #666; margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 8px;">Guarda este código QR en tu teléfono o imprímelo</li>
+                  <li style="margin-bottom: 8px;">Muestra el código QR al llegar a cada sesión</li>
+                  <li style="margin-bottom: 8px;">El personal escaneará tu código para registrar tu asistencia</li>
+                </ol>
+              </div>
+            </div>
+          </body>
+        </html>
+      `
+    });
 
-      console.log('Email enviado exitosamente:', emailResponse);
+    console.log('Email enviado exitosamente:', emailResponse);
 
-      return new Response(
-        JSON.stringify({ success: true, data: emailResponse }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        },
-      );
-
-    } catch (emailError) {
-      console.error('Error en el proceso:', emailError);
-      throw emailError;
-    }
+    return new Response(
+      JSON.stringify({ success: true, data: emailResponse }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      },
+    );
 
   } catch (error) {
-    console.error('Error en send-qr-email:', error);
+    console.error('Error en el proceso:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
@@ -107,4 +113,4 @@ serve(async (req) => {
       },
     );
   }
-})
+});

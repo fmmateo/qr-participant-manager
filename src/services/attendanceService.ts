@@ -15,12 +15,16 @@ export interface QrData {
 export const sendQrEmail = async (name: string, email: string, qrCode: string) => {
   console.log('Enviando email con QR a:', { name, email, qrCode });
   
+  if (!name || !email || !qrCode) {
+    throw new Error('Faltan datos requeridos para enviar el email');
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke('send-qr-email', {
       body: { 
         name: name.trim(), 
         email: email.toLowerCase().trim(), 
-        qrCode 
+        qrCode: qrCode.trim()
       }
     });
 
