@@ -27,7 +27,7 @@ serve(async (req) => {
     }));
 
     const emailResponse = await resend.emails.send({
-      from: "Registro <registro@tu-dominio-verificado.com>",
+      from: "Registro <registro@twinsrd.com>",
       to: email,
       subject: "Tu Código QR para Registro de Asistencia",
       html: `

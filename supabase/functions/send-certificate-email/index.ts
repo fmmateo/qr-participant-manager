@@ -27,7 +27,7 @@ serve(async (req) => {
     } = await req.json()
 
     const emailResponse = await resend.emails.send({
-      from: "Certificados <certificados@tu-dominio-verificado.com>",
+      from: "Certificados <certificados@twinsrd.com>",
       to: email,
       subject: `Tu Certificado de ${certificateType} - ${programName}`,
       html: `
