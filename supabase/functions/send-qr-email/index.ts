@@ -18,24 +18,25 @@ serve(async (req) => {
   try {
     const { name, email, qrCode } = await req.json()
 
-    console.log('Generando QR para:', { name, email, qrCode });
+    console.log('Iniciando generación de QR para:', { name, email, qrCode });
 
-    // Generar QR como URL de datos Base64
-    const qrDataUrl = await QRCode.toDataURL(JSON.stringify({
+    // Generar QR directamente como PNG en Buffer
+    const qrBuffer = await QRCode.toBuffer(JSON.stringify({
       name,
       email,
       qrCode,
       timestamp: new Date().toISOString()
     }), {
+      type: 'png',
       width: 300,
       margin: 2,
       errorCorrectionLevel: 'H'
     });
 
-    // Extraer la parte Base64 de la URL de datos
-    const base64Data = qrDataUrl.split(',')[1];
+    // Convertir el buffer a Base64
+    const base64QR = Buffer.from(qrBuffer).toString('base64');
 
-    console.log('QR generado exitosamente');
+    console.log('QR generado exitosamente como PNG');
 
     const emailResponse = await resend.emails.send({
       from: "Registro <registro@twinsrd.com>",
@@ -46,7 +47,7 @@ serve(async (req) => {
           <h1 style="color: #333; text-align: center;">¡Bienvenido/a ${name}!</h1>
           <p style="color: #666; font-size: 16px;">Gracias por registrarte. Aquí está tu código QR personal para registrar tu asistencia:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <img src="cid:qr-code" alt="Tu código QR" style="max-width: 300px; width: 100%; height: auto;"/>
+            <img src="data:image/png;base64,${base64QR}" alt="Tu código QR" style="max-width: 300px; width: 100%; height: auto;"/>
           </div>
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p style="color: #333; font-weight: bold;">Instrucciones:</p>
@@ -58,15 +59,7 @@ serve(async (req) => {
           </div>
           <p style="color: #666; text-align: center; margin-top: 30px;">¡Te esperamos!</p>
         </div>
-      `,
-      attachments: [
-        {
-          filename: 'qr-code.png',
-          content: base64Data,
-          content_id: 'qr-code',
-          disposition: 'inline'
-        }
-      ],
+      `
     });
 
     console.log('Email enviado exitosamente:', emailResponse);
