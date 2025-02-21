@@ -13,6 +13,7 @@ import ParticipantList from "@/pages/ParticipantList";
 import IssueCertificate from "@/pages/IssueCertificate";
 import CertificateTemplates from "@/pages/CertificateTemplates";
 import CertificateDesigns from "@/pages/CertificateDesigns";
+import VerifyCertificate from "@/pages/VerifyCertificate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ function App() {
           <Route path="/certificates" element={<IssueCertificate />} />
           <Route path="/certificate-templates" element={<CertificateTemplates />} />
           <Route path="/certificate-designs" element={<CertificateDesigns />} />
+          <Route path="/certificates/verify/:certificateNumber" element={<VerifyCertificate />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
