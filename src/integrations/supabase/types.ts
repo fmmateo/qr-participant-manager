@@ -422,6 +422,27 @@ export type Database = {
           },
         ]
       }
+      usuarios: {
+        Row: {
+          creado_en: string | null
+          email: string
+          id: number
+          nombre: string
+        }
+        Insert: {
+          creado_en?: string | null
+          email: string
+          id?: number
+          nombre: string
+        }
+        Update: {
+          creado_en?: string | null
+          email?: string
+          id?: number
+          nombre?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       mv_attendance_summary: {
