@@ -6,68 +6,80 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificado Profesional</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&display=swap');
+        
         body {
-            font-family: 'Times New Roman', serif;
+            font-family: 'Cormorant Garamond', serif;
             text-align: center;
             padding: 20px;
             background-color: #FFFFFF;
+            margin: 0;
         }
         .certificado {
-            border: 15px solid #b8860b;
-            padding: 50px;
-            width: 900px;
+            border: 20px solid #c9a227;
+            padding: 40px;
+            width: 800px;
             margin: auto;
             background: #FFFFFF;
             position: relative;
-            box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+            background-image: 
+                radial-gradient(circle at 10px 10px, rgba(201, 162, 39, 0.05) 1px, transparent 1px),
+                radial-gradient(circle at 20px 20px, rgba(201, 162, 39, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
         }
         .header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-bottom: 40px;
-            gap: 20px;
+            justify-content: space-between;
+            margin-bottom: 50px;
+            padding: 0 20px;
         }
         .logo {
-            width: 150px;
+            width: 140px;
             height: auto;
+            object-fit: contain;
         }
         .title {
             text-align: center;
+            flex-grow: 1;
+            padding: 0 20px;
         }
         h1 {
-            font-size: 42px;
-            font-weight: bold;
-            color: #b8860b;
-            margin-bottom: 15px;
+            font-size: 48px;
+            font-weight: 700;
+            color: #c9a227;
+            margin: 0;
             text-transform: uppercase;
+            letter-spacing: 2px;
+            line-height: 1.2;
             text-align: center;
         }
         h2 {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
+            font-size: 36px;
+            font-weight: 600;
+            color: #2c3e50;
             margin: 20px 0;
             text-align: center;
         }
         h3 {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: normal;
-            color: #333;
+            color: #34495e;
+            margin: 15px 0;
             text-align: center;
         }
         p {
-            font-size: 20px;
-            color: #444;
+            font-size: 22px;
+            color: #34495e;
             margin: 15px 0;
             line-height: 1.5;
             text-align: center;
         }
         .descripcion {
-            font-size: 18px;
-            color: #666;
-            margin: 25px auto;
+            font-size: 20px;
+            color: #34495e;
+            margin: 30px auto;
             max-width: 80%;
             line-height: 1.6;
             text-align: center;
@@ -76,57 +88,65 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             display: flex;
             justify-content: space-around;
             margin-top: 60px;
-            padding: 0 40px;
-            gap: 40px;
+            padding: 20px 40px;
+            gap: 80px;
         }
         .firma {
             text-align: center;
-            width: 300px;
-            padding-top: 10px;
+            width: 250px;
             position: relative;
+            margin-top: 30px;
         }
         .firma img {
-            width: 200px;
-            position: absolute;
-            top: -50px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        .firma-linea {
-            border-top: 2px solid #000;
-            margin-top: 60px;
+            width: 180px;
+            height: 80px;
+            object-fit: contain;
             margin-bottom: 10px;
         }
+        .firma-linea {
+            border-top: 2px solid #2c3e50;
+            margin: 10px auto;
+            width: 100%;
+        }
         .firma-nombre {
-            font-size: 18px;
-            font-weight: bold;
-            margin: 0;
-            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 5px 0;
+            color: #2c3e50;
         }
         .firma-cargo {
-            font-size: 16px;
-            color: #666;
-            margin: 5px 0 0 0;
+            font-size: 18px;
+            color: #34495e;
+            margin: 5px 0;
+        }
+        .fecha {
+            margin: 30px 0;
+            font-size: 20px;
+            color: #34495e;
         }
         .qr-container {
             position: absolute;
             bottom: 30px;
             right: 30px;
             text-align: right;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
         }
         .qr-container img {
-            width: 120px;
-            height: 120px;
+            width: 100px;
+            height: 100px;
             margin-bottom: 10px;
         }
         .codigo-emision {
             font-size: 14px;
-            font-weight: bold;
-            color: #555;
+            color: #34495e;
             text-align: right;
+        }
+        .sello {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            opacity: 0.2;
+            width: 120px;
+            height: 120px;
         }
     </style>
 </head>
@@ -135,19 +155,22 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
         <div class="header">
             <img class="logo" id="logoEmpresa" src="" alt="Logo Empresa">
             <div class="title">
-                <h1>Certificado Profesional</h1>
+                <h1>Certificado</h1>
+                <h3>de Reconocimiento</h3>
             </div>
         </div>
         <div class="contenido">
-            <p>Por medio de la presente, se certifica que:</p>
-            <h2 id="nombreParticipante">[Nombre]</h2>
-            <p>Ha completado exitosamente el programa:</p>
-            <h3 id="curso"><strong>[Curso]</strong></h3>
+            <p>Se certifica que:</p>
+            <h2 id="nombreParticipante">[Nombre del Participante]</h2>
+            <p>Ha completado satisfactoriamente el programa:</p>
+            <h3 id="curso">[Nombre del Programa]</h3>
             <p class="descripcion">
-                Habiendo demostrado los conocimientos y competencias requeridas para su aprobación,
-                cumpliendo con todos los requisitos establecidos por la institución.
+                Habiendo demostrado excelencia académica y compromiso, cumpliendo 
+                satisfactoriamente con todos los requisitos establecidos por la institución.
             </p>
-            <p>Fecha de emisión: <span id="fecha">[Fecha]</span></p>
+            <p class="fecha">
+                Fecha de emisión: <span id="fecha">[Fecha]</span>
+            </p>
             <div class="firmas-container">
                 <div class="firma">
                     <img id="firmaDigital" src="" alt="Firma Director">
@@ -159,12 +182,15 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
                     <img id="firmaSpeaker" src="" alt="Firma Expositor">
                     <div class="firma-linea"></div>
                     <p class="firma-nombre" id="nombreExpositor">[Nombre del Expositor]</p>
-                    <p class="firma-cargo">Expositor</p>
+                    <p class="firma-cargo">Expositor Principal</p>
                 </div>
             </div>
             <div class="qr-container">
                 <img id="codigoQR" src="" alt="Código QR">
-                <p class="codigo-emision">Código de verificación:<br><span id="codigoEmision">[Código]</span></p>
+                <p class="codigo-emision">
+                    Código de verificación:<br>
+                    <span id="codigoEmision">[Código]</span>
+                </p>
             </div>
         </div>
     </div>
