@@ -77,12 +77,10 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             justify-content: space-around;
             margin-top: 60px;
             padding: 0 40px;
+            gap: 40px;
         }
         .firma {
             text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            border-top: 2px solid #000;
             width: 300px;
             padding-top: 10px;
             position: relative;
@@ -93,6 +91,22 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             top: -50px;
             left: 50%;
             transform: translateX(-50%);
+        }
+        .firma-linea {
+            border-top: 2px solid #000;
+            margin-top: 60px;
+            margin-bottom: 10px;
+        }
+        .firma-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+            color: #333;
+        }
+        .firma-cargo {
+            font-size: 16px;
+            color: #666;
+            margin: 5px 0 0 0;
         }
         .qr-container {
             position: absolute;
@@ -137,11 +151,15 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             <div class="firmas-container">
                 <div class="firma">
                     <img id="firmaDigital" src="" alt="Firma Director">
-                    <p>Director Académico</p>
+                    <div class="firma-linea"></div>
+                    <p class="firma-nombre" id="nombreDirector">[Nombre del Director]</p>
+                    <p class="firma-cargo">Director Académico</p>
                 </div>
                 <div class="firma">
                     <img id="firmaSpeaker" src="" alt="Firma Expositor">
-                    <p>Expositor</p>
+                    <div class="firma-linea"></div>
+                    <p class="firma-nombre" id="nombreExpositor">[Nombre del Expositor]</p>
+                    <p class="firma-cargo">Expositor</p>
                 </div>
             </div>
             <div class="qr-container">

@@ -12,6 +12,10 @@ interface DesignFormFieldsProps {
   setSignatureUrl: (url: string) => void;
   speakerSignatureUrl: string;
   setSpeakerSignatureUrl: (url: string) => void;
+  directorName: string;
+  setDirectorName: (name: string) => void;
+  speakerName: string;
+  setSpeakerName: (name: string) => void;
 }
 
 export const DesignFormFields = ({
@@ -22,7 +26,11 @@ export const DesignFormFields = ({
   signatureUrl,
   setSignatureUrl,
   speakerSignatureUrl,
-  setSpeakerSignatureUrl
+  setSpeakerSignatureUrl,
+  directorName,
+  setDirectorName,
+  speakerName,
+  setSpeakerName
 }: DesignFormFieldsProps) => {
   return (
     <>
@@ -42,15 +50,41 @@ export const DesignFormFields = ({
         onAssetUploaded={setLogoUrl}
       />
 
-      <CertificateAssetUpload
-        label="Firma digital del Director"
-        onAssetUploaded={setSignatureUrl}
-      />
+      <div className="space-y-4">
+        <div>
+          <CertificateAssetUpload
+            label="Firma digital del Director"
+            onAssetUploaded={setSignatureUrl}
+          />
+          <div className="mt-2">
+            <Label htmlFor="directorName">Nombre del Director</Label>
+            <Input
+              id="directorName"
+              value={directorName}
+              onChange={(e) => setDirectorName(e.target.value)}
+              placeholder="Nombre del Director Académico"
+              className="mt-1"
+            />
+          </div>
+        </div>
 
-      <CertificateAssetUpload
-        label="Firma digital del Expositor"
-        onAssetUploaded={setSpeakerSignatureUrl}
-      />
+        <div>
+          <CertificateAssetUpload
+            label="Firma digital del Expositor"
+            onAssetUploaded={setSpeakerSignatureUrl}
+          />
+          <div className="mt-2">
+            <Label htmlFor="speakerName">Nombre del Expositor</Label>
+            <Input
+              id="speakerName"
+              value={speakerName}
+              onChange={(e) => setSpeakerName(e.target.value)}
+              placeholder="Nombre del Expositor"
+              className="mt-1"
+            />
+          </div>
+        </div>
+      </div>
 
       {logoUrl && (
         <div className="space-y-2">
