@@ -31,6 +31,8 @@ interface DesignParams {
   speaker_signature_url?: DesignParam;
   title?: DesignParam;
   template_html?: DesignParam;
+  director_name?: string;
+  speaker_name?: string;
 }
 
 export interface CertificateDesign {
@@ -43,3 +45,4 @@ export interface CertificateDesign {
   created_at: string;
   updated_at: string;
 }
+
