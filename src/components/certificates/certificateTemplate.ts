@@ -1,194 +1,171 @@
 
 export const getCertificateTemplate = () => `<!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificado Profesional</title>
     <style>
-        @page {
-            size: landscape;
-            margin: 0;
-        }
         body {
-            width: 29.7cm;
-            height: 21cm;
-            margin: 0;
-            padding: 0;
             font-family: 'Times New Roman', serif;
-            background: #fff;
-            -webkit-print-color-adjust: exact;
-            position: relative;
+            text-align: center;
+            padding: 20px;
+            background-color: #FFFFFF;
         }
-        .certificate-container {
-            width: 100%;
-            height: 100%;
-            padding: 2cm;
-            box-sizing: border-box;
-            background: linear-gradient(to bottom right, rgba(255,255,255,0.95), rgba(245,245,245,0.95));
+        .certificado {
+            border: 15px solid #b8860b;
+            padding: 50px;
+            width: 900px;
+            margin: auto;
+            background: #FFFFFF;
             position: relative;
-            border: 20px double #2c3e50;
+            box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
         }
         .header {
-            text-align: center;
-            margin-bottom: 2cm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+            gap: 20px;
         }
         .logo {
-            max-width: 180px;
-            margin-bottom: 1cm;
+            width: 150px;
+            height: auto;
         }
         .title {
-            font-size: 54px;
-            color: #2c3e50;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 6px;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        }
-        .content {
             text-align: center;
-            margin: 0 auto;
-            max-width: 80%;
         }
-        .intro-text {
-            font-size: 26px;
-            color: #34495e;
-            margin: 15px 0;
-            font-style: italic;
-        }
-        .name {
+        h1 {
             font-size: 42px;
-            color: #2c3e50;
-            margin: 30px 0;
             font-weight: bold;
+            color: #b8860b;
+            margin-bottom: 15px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            font-family: 'Times New Roman', serif;
+            text-align: center;
         }
-        .course-name {
+        h2 {
             font-size: 32px;
-            margin: 30px 0;
-            color: #34495e;
             font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+            text-align: center;
         }
-        .description {
-            font-size: 22px;
-            color: #34495e;
-            margin: 40px auto;
-            line-height: 1.6;
+        h3 {
+            font-size: 24px;
+            font-weight: normal;
+            color: #333;
+            text-align: center;
+        }
+        p {
+            font-size: 20px;
+            color: #444;
+            margin: 15px 0;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .descripcion {
+            font-size: 18px;
+            color: #666;
+            margin: 25px auto;
             max-width: 80%;
+            line-height: 1.6;
+            text-align: center;
         }
-        .signatures {
+        .firmas-container {
             display: flex;
             justify-content: space-around;
-            margin: 2cm 0;
-            padding: 0 2cm;
+            margin-top: 60px;
+            padding: 0 40px;
+            gap: 40px;
         }
-        .signature {
+        .firma {
             text-align: center;
             width: 300px;
+            padding-top: 10px;
+            position: relative;
         }
-        .signature-img {
-            width: 220px;
-            height: 90px;
+        .firma img {
+            width: 200px;
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .firma-linea {
+            border-top: 2px solid #000;
+            margin-top: 60px;
             margin-bottom: 10px;
-            object-fit: contain;
         }
-        .signature-line {
-            width: 100%;
-            border-top: 2px solid #2c3e50;
-            margin: 10px 0;
-        }
-        .signature-name {
-            font-size: 20px;
-            margin: 5px 0;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .signature-title {
+        .firma-nombre {
             font-size: 18px;
-            color: #7f8c8d;
-            font-style: italic;
-        }
-        .footer {
-            text-align: center;
-            position: absolute;
-            bottom: 2cm;
-            width: 100%;
-            left: 0;
-        }
-        .footer p {
-            font-size: 20px;
-            color: #34495e;
+            font-weight: bold;
             margin: 0;
+            color: #333;
         }
-        .verification {
+        .firma-cargo {
+            font-size: 16px;
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        .qr-container {
             position: absolute;
-            bottom: 1.5cm;
-            right: 2cm;
+            bottom: 30px;
+            right: 30px;
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
-        .qr-code {
-            width: 100px;
-            height: 100px;
-            margin-bottom: 5px;
+        .qr-container img {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 10px;
         }
-        .verification-text {
+        .codigo-emision {
             font-size: 14px;
-            color: #7f8c8d;
-        }
-        .border-pattern {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border: 2px solid #2c3e50;
-            margin: 10px;
-            pointer-events: none;
+            font-weight: bold;
+            color: #555;
+            text-align: right;
         }
     </style>
 </head>
 <body>
-    <div class="certificate-container">
-        <div class="border-pattern"></div>
+    <div class="certificado">
         <div class="header">
-            <img id="logoEmpresa" class="logo" src="" alt="Logo">
-            <h1 class="title">Certificado Profesional</h1>
-        </div>
-        <div class="content">
-            <p class="intro-text">Se certifica que:</p>
-            <h2 id="nombreParticipante" class="name">[Nombre del Participante]</h2>
-            <p class="intro-text">Ha completado satisfactoriamente:</p>
-            <h3 id="curso" class="course-name">[Nombre del Programa]</h3>
-            <p class="description">
-                Por haber culminado satisfactoriamente el programa académico, demostrando 
-                dedicación y compromiso en el desarrollo de las actividades.
-            </p>
-        </div>
-        <div class="signatures">
-            <div class="signature">
-                <img id="firmaDigital" class="signature-img" src="" alt="Firma Director">
-                <div class="signature-line"></div>
-                <p id="nombreDirector" class="signature-name">[Nombre del Director]</p>
-                <p class="signature-title">Director Académico</p>
-            </div>
-            <div class="signature">
-                <img id="firmaSpeaker" class="signature-img" src="" alt="Firma Expositor">
-                <div class="signature-line"></div>
-                <p id="nombreExpositor" class="signature-name">[Nombre del Expositor]</p>
-                <p class="signature-title">Expositor Principal</p>
+            <img class="logo" id="logoEmpresa" src="" alt="Logo Empresa">
+            <div class="title">
+                <h1>Certificado Profesional</h1>
             </div>
         </div>
-        <div class="footer">
-            <p id="fecha">Lima, [Fecha]</p>
-        </div>
-        <div class="verification">
-            <img id="codigoQR" class="qr-code" src="" alt="QR Code">
-            <p class="verification-text">
-                Código de verificación:<br>
-                <span id="codigoEmision">[Código]</span>
+        <div class="contenido">
+            <p>Por medio de la presente, se certifica que:</p>
+            <h2 id="nombreParticipante">[Nombre]</h2>
+            <p>Ha completado exitosamente el programa:</p>
+            <h3 id="curso"><strong>[Curso]</strong></h3>
+            <p class="descripcion">
+                Habiendo demostrado los conocimientos y competencias requeridas para su aprobación,
+                cumpliendo con todos los requisitos establecidos por la institución.
             </p>
+            <p>Fecha de emisión: <span id="fecha">[Fecha]</span></p>
+            <div class="firmas-container">
+                <div class="firma">
+                    <img id="firmaDigital" src="" alt="Firma Director">
+                    <div class="firma-linea"></div>
+                    <p class="firma-nombre" id="nombreDirector">[Nombre del Director]</p>
+                    <p class="firma-cargo">Director Académico</p>
+                </div>
+                <div class="firma">
+                    <img id="firmaSpeaker" src="" alt="Firma Expositor">
+                    <div class="firma-linea"></div>
+                    <p class="firma-nombre" id="nombreExpositor">[Nombre del Expositor]</p>
+                    <p class="firma-cargo">Expositor</p>
+                </div>
+            </div>
+            <div class="qr-container">
+                <img id="codigoQR" src="" alt="Código QR">
+                <p class="codigo-emision">Código de verificación:<br><span id="codigoEmision">[Código]</span></p>
+            </div>
         </div>
     </div>
 </body>

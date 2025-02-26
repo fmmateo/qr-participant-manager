@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -88,7 +89,7 @@ const IssueCertificate = () => {
         selectedProgram,
         certificateType,
         selectedTemplate,
-        design as unknown as CertificateDesign
+        design as CertificateDesign
       );
 
       toast({
