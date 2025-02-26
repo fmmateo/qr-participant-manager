@@ -30,7 +30,7 @@ export const CertificateDesignSelect = ({
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as CertificateDesign[];
+      return data as unknown as CertificateDesign[];
     }
   });
 
