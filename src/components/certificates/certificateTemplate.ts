@@ -72,14 +72,18 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             line-height: 1.6;
             text-align: center;
         }
-        .firma {
+        .firmas-container {
+            display: flex;
+            justify-content: space-around;
             margin-top: 60px;
+            padding: 0 40px;
+        }
+        .firma {
             text-align: center;
             font-size: 18px;
             font-weight: bold;
             border-top: 2px solid #000;
             width: 300px;
-            margin: 60px auto 0;
             padding-top: 10px;
             position: relative;
         }
@@ -130,9 +134,15 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
                 cumpliendo con todos los requisitos establecidos por la institución.
             </p>
             <p>Fecha de emisión: <span id="fecha">[Fecha]</span></p>
-            <div class="firma">
-                <img id="firmaDigital" src="" alt="Firma Digital">
-                <p>Director Académico</p>
+            <div class="firmas-container">
+                <div class="firma">
+                    <img id="firmaDigital" src="" alt="Firma Director">
+                    <p>Director Académico</p>
+                </div>
+                <div class="firma">
+                    <img id="firmaSpeaker" src="" alt="Firma Expositor">
+                    <p>Expositor</p>
+                </div>
             </div>
             <div class="qr-container">
                 <img id="codigoQR" src="" alt="Código QR">

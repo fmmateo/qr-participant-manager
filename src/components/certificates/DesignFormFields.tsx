@@ -10,6 +10,8 @@ interface DesignFormFieldsProps {
   setLogoUrl: (url: string) => void;
   signatureUrl: string;
   setSignatureUrl: (url: string) => void;
+  speakerSignatureUrl: string;
+  setSpeakerSignatureUrl: (url: string) => void;
 }
 
 export const DesignFormFields = ({
@@ -18,7 +20,9 @@ export const DesignFormFields = ({
   logoUrl,
   setLogoUrl,
   signatureUrl,
-  setSignatureUrl
+  setSignatureUrl,
+  speakerSignatureUrl,
+  setSpeakerSignatureUrl
 }: DesignFormFieldsProps) => {
   return (
     <>
@@ -39,8 +43,13 @@ export const DesignFormFields = ({
       />
 
       <CertificateAssetUpload
-        label="Firma digital"
+        label="Firma digital del Director"
         onAssetUploaded={setSignatureUrl}
+      />
+
+      <CertificateAssetUpload
+        label="Firma digital del Expositor"
+        onAssetUploaded={setSpeakerSignatureUrl}
       />
 
       {logoUrl && (
@@ -56,10 +65,21 @@ export const DesignFormFields = ({
 
       {signatureUrl && (
         <div className="space-y-2">
-          <Label>Vista previa de la firma</Label>
+          <Label>Vista previa de la firma del Director</Label>
           <img 
             src={signatureUrl} 
-            alt="Signature preview" 
+            alt="Director signature preview" 
+            className="w-32 h-32 object-contain border rounded-lg"
+          />
+        </div>
+      )}
+
+      {speakerSignatureUrl && (
+        <div className="space-y-2">
+          <Label>Vista previa de la firma del Expositor</Label>
+          <img 
+            src={speakerSignatureUrl} 
+            alt="Speaker signature preview" 
             className="w-32 h-32 object-contain border rounded-lg"
           />
         </div>

@@ -28,6 +28,7 @@ interface DesignParam {
 interface DesignParams {
   logo_url?: DesignParam;
   signature_url?: DesignParam;
+  speaker_signature_url?: DesignParam;
   title?: DesignParam;
   template_html?: DesignParam;
 }

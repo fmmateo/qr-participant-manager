@@ -23,6 +23,7 @@ export const CertificateDesignEditor = ({
   const [name, setName] = useState(design?.name || "");
   const [logoUrl, setLogoUrl] = useState(design?.design_params?.logo_url?.url || "");
   const [signatureUrl, setSignatureUrl] = useState(design?.design_params?.signature_url?.url || "");
+  const [speakerSignatureUrl, setSpeakerSignatureUrl] = useState(design?.design_params?.speaker_signature_url?.url || "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +34,7 @@ export const CertificateDesignEditor = ({
         title: { text: "Certificado de Participación", type: "text" },
         logo_url: { url: logoUrl, type: "image" },
         signature_url: { url: signatureUrl, type: "image" },
+        speaker_signature_url: { url: speakerSignatureUrl, type: "image" },
         template_html: { text: getCertificateTemplate(), type: "html" }
       };
 
@@ -88,12 +90,14 @@ export const CertificateDesignEditor = ({
           setLogoUrl={setLogoUrl}
           signatureUrl={signatureUrl}
           setSignatureUrl={setSignatureUrl}
+          speakerSignatureUrl={speakerSignatureUrl}
+          setSpeakerSignatureUrl={setSpeakerSignatureUrl}
         />
 
         <Button 
           type="submit" 
           className="w-full"
-          disabled={isSubmitting || !name || !logoUrl || !signatureUrl}
+          disabled={isSubmitting || !name || !logoUrl || !signatureUrl || !speakerSignatureUrl}
         >
           <Save className="mr-2 h-4 w-4" />
           {isSubmitting ? "Guardando..." : "Guardar Diseño"}
