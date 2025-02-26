@@ -153,7 +153,7 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
                     <img id="firmaDigital" src="" alt="Firma Director">
                     <div class="firma-linea"></div>
                     <p class="firma-nombre" id="nombreDirector">[Nombre del Director]</p>
-                    <p class="firma-cargo">Director Académico</p>
+                    <p class="firma-cargo">Director</p>
                 </div>
                 <div class="firma">
                     <img id="firmaSpeaker" src="" alt="Firma Expositor">
@@ -170,3 +170,4 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
     </div>
 </body>
 </html>`;
+
