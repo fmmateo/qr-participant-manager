@@ -40,7 +40,7 @@ export const CertificateAssetUpload = ({
       // Subir el archivo a Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('certificate-assets')
-        .upload(fileName, file);
+        .upload(`assets/${fileName}`, file);
 
       if (uploadError) {
         console.error('Error al subir archivo:', uploadError);
@@ -50,7 +50,7 @@ export const CertificateAssetUpload = ({
       // Obtener la URL pública del archivo
       const { data: { publicUrl } } = supabase.storage
         .from('certificate-assets')
-        .getPublicUrl(fileName);
+        .getPublicUrl(`assets/${fileName}`);
 
       // Guardar referencia en la base de datos
       const { error: dbError } = await supabase
@@ -59,13 +59,21 @@ export const CertificateAssetUpload = ({
           {
             name: file.name,
             asset_url: publicUrl,
-            file_path: fileName
+            file_path: `assets/${fileName}`,
+            type: 'image',
+            size: file.size,
+            created_by: (await supabase.auth.getUser()).data.user?.id
           }
         ]);
 
       if (dbError) {
         console.error('Error al guardar en BD:', dbError);
-        throw new Error('Error al guardar la referencia del archivo.');
+        // No lanzamos error aquí, solo lo registramos
+        toast({
+          title: "Advertencia",
+          description: "El archivo se subió pero hubo un error al registrarlo. Puedes continuar usando el archivo.",
+          variant: "default",
+        });
       }
 
       toast({
