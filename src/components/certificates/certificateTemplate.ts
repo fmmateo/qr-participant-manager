@@ -3,106 +3,129 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Certificado</title>
+    <title>Certificado Profesional</title>
     <style>
+        @page {
+            size: landscape;
+            margin: 0;
+        }
         body {
             width: 29.7cm;
             height: 21cm;
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Times New Roman', serif;
             background: #fff;
             -webkit-print-color-adjust: exact;
+            position: relative;
         }
         .certificate-container {
             width: 100%;
             height: 100%;
-            padding: 0;
-            margin: 0;
-            background: #fff;
+            padding: 2cm;
+            box-sizing: border-box;
+            background: linear-gradient(to bottom right, rgba(255,255,255,0.95), rgba(245,245,245,0.95));
             position: relative;
+            border: 20px double #2c3e50;
         }
         .header {
             text-align: center;
-            padding: 40px 0 20px 0;
+            margin-bottom: 2cm;
         }
         .logo {
-            max-width: 200px;
-            margin-bottom: 20px;
+            max-width: 180px;
+            margin-bottom: 1cm;
         }
         .title {
-            font-size: 48px;
-            color: #000;
-            margin: 20px 0;
+            font-size: 54px;
+            color: #2c3e50;
+            margin: 0;
             text-transform: uppercase;
-            letter-spacing: 4px;
+            letter-spacing: 6px;
             font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
         .content {
-            margin: 0 auto;
             text-align: center;
-            padding: 20px 60px;
+            margin: 0 auto;
+            max-width: 80%;
         }
         .intro-text {
-            font-size: 24px;
-            margin: 30px 0;
+            font-size: 26px;
+            color: #34495e;
+            margin: 15px 0;
+            font-style: italic;
         }
         .name {
-            font-size: 36px;
-            color: #000;
+            font-size: 42px;
+            color: #2c3e50;
             margin: 30px 0;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: 'Times New Roman', serif;
         }
         .course-name {
-            font-size: 28px;
+            font-size: 32px;
             margin: 30px 0;
-            color: #000;
+            color: #34495e;
+            font-weight: bold;
         }
         .description {
-            font-size: 20px;
+            font-size: 22px;
+            color: #34495e;
             margin: 40px auto;
-            max-width: 800px;
             line-height: 1.6;
+            max-width: 80%;
         }
         .signatures {
             display: flex;
-            justify-content: space-between;
-            margin: 60px 120px 40px 120px;
+            justify-content: space-around;
+            margin: 2cm 0;
+            padding: 0 2cm;
         }
         .signature {
             text-align: center;
             width: 300px;
         }
         .signature-img {
-            width: 200px;
-            height: 80px;
+            width: 220px;
+            height: 90px;
             margin-bottom: 10px;
             object-fit: contain;
         }
         .signature-line {
             width: 100%;
-            border-top: 2px solid #000;
+            border-top: 2px solid #2c3e50;
             margin: 10px 0;
         }
         .signature-name {
-            font-size: 18px;
+            font-size: 20px;
             margin: 5px 0;
             font-weight: bold;
+            color: #2c3e50;
         }
         .signature-title {
-            font-size: 16px;
-            color: #666;
+            font-size: 18px;
+            color: #7f8c8d;
+            font-style: italic;
         }
         .footer {
             text-align: center;
-            margin-top: 40px;
-            font-size: 18px;
+            position: absolute;
+            bottom: 2cm;
+            width: 100%;
+            left: 0;
+        }
+        .footer p {
+            font-size: 20px;
+            color: #34495e;
+            margin: 0;
         }
         .verification {
             position: absolute;
-            bottom: 40px;
-            right: 40px;
+            bottom: 1.5cm;
+            right: 2cm;
             text-align: right;
         }
         .qr-code {
@@ -111,16 +134,27 @@ export const getCertificateTemplate = () => `<!DOCTYPE html>
             margin-bottom: 5px;
         }
         .verification-text {
-            font-size: 12px;
-            color: #666;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .border-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px solid #2c3e50;
+            margin: 10px;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
     <div class="certificate-container">
+        <div class="border-pattern"></div>
         <div class="header">
             <img id="logoEmpresa" class="logo" src="" alt="Logo">
-            <h1 class="title">Certificado</h1>
+            <h1 class="title">Certificado Profesional</h1>
         </div>
         <div class="content">
             <p class="intro-text">Se certifica que:</p>
