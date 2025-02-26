@@ -1,39 +1,65 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Program, Template, Participant, CertificateDesign } from "@/components/certificates/types";
 import html2canvas from 'html2canvas';
 
 const generateCertificateHTML = (participant: Participant, program: Program, certType: string, issueDate: string, certificateNumber: string, design: CertificateDesign) => {
-  const certificateHTML = `
-    <div style="font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background-color: #FFFFFF;">
-      <div style="border: 15px solid #b8860b; padding: 40px; width: 700px; margin: auto; background-color: #FFFFFF; position: relative;">
-        <div style="text-align: center; margin-bottom: 30px; background-color: #FFFFFF;">
-          <img src="${design.design_params.logo_url?.url}" alt="Logo" style="width: 100px; margin-bottom: 20px;">
-          <h1 style="font-size: 36px; font-weight: bold; color: #000000; margin-bottom: 15px; text-transform: uppercase;">
-            Certificado de ${certType}
-          </h1>
-        </div>
-        <p style="font-size: 18px; color: #000000; margin: 12px 0;">Se certifica que:</p>
-        <h2 style="font-size: 28px; font-weight: bold; color: #000000; margin: 15px 0;">${participant.name}</h2>
-        <p style="font-size: 18px; color: #000000; margin: 12px 0;">Ha completado satisfactoriamente el programa:</p>
-        <h3 style="font-size: 22px; font-weight: bold; color: #000000; margin: 15px 0;">${program.name}</h3>
-        <p style="font-size: 16px; color: #000000; margin: 20px 0;">Fecha de emisión: ${issueDate}</p>
-        <div style="margin-top: 80px; text-align: center;">
-          <div style="position: relative; display: inline-block;">
-            <img src="${design.design_params.signature_url?.url}" alt="Firma" style="width: 150px; position: absolute; bottom: 20px; left: 50px;">
-            <p style="font-size: 16px; font-weight: bold; border-top: 2px solid #000000; width: 250px; margin: 10px auto; padding-top: 10px; color: #000000;">
-              Director Académico
-            </p>
-          </div>
-        </div>
-        <p style="font-size: 12px; color: #000000; position: absolute; bottom: 15px; right: 15px;">
-          Número de certificado: ${certificateNumber}
-        </p>
-      </div>
-    </div>
-  `;
+  const certificateTemplate = design.design_params.template_html?.text || '';
+  
+  // Crear un div temporal para manipular el HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = certificateTemplate;
 
-  return certificateHTML;
+  // Actualizar los valores en el template
+  const logoImg = tempDiv.querySelector('#logoEmpresa') as HTMLImageElement;
+  if (logoImg && design.design_params.logo_url?.url) {
+    logoImg.src = design.design_params.logo_url.url;
+  }
+
+  // Actualizar firma del director
+  const directorSignature = tempDiv.querySelector('#firmaDigital') as HTMLImageElement;
+  if (directorSignature && design.design_params.signature_url?.url) {
+    directorSignature.src = design.design_params.signature_url.url;
+  }
+
+  // Actualizar firma del expositor
+  const speakerSignature = tempDiv.querySelector('#firmaSpeaker') as HTMLImageElement;
+  if (speakerSignature && design.design_params.speaker_signature_url?.url) {
+    speakerSignature.src = design.design_params.speaker_signature_url.url;
+  }
+
+  // Actualizar nombres
+  const directorName = tempDiv.querySelector('#nombreDirector');
+  if (directorName) {
+    directorName.textContent = design.design_params.director_name;
+  }
+
+  const speakerName = tempDiv.querySelector('#nombreExpositor');
+  if (speakerName) {
+    speakerName.textContent = design.design_params.speaker_name;
+  }
+
+  // Actualizar datos del participante y programa
+  const nombreParticipante = tempDiv.querySelector('#nombreParticipante');
+  if (nombreParticipante) {
+    nombreParticipante.textContent = participant.name;
+  }
+
+  const curso = tempDiv.querySelector('#curso');
+  if (curso) {
+    curso.textContent = program.name;
+  }
+
+  const fecha = tempDiv.querySelector('#fecha');
+  if (fecha) {
+    fecha.textContent = issueDate;
+  }
+
+  const codigoEmision = tempDiv.querySelector('#codigoEmision');
+  if (codigoEmision) {
+    codigoEmision.textContent = certificateNumber;
+  }
+
+  return tempDiv.innerHTML;
 };
 
 export const issueCertificate = async (
